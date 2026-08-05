@@ -167,7 +167,11 @@
   .rvw-png:disabled{opacity:.6;cursor:wait;}
   .rvw-badge{background:#3a3a3a;border-radius:10px;padding:3px 10px;color:#aaa;margin-left:auto;}
   .rvw-panel{position:fixed;top:48px;right:0;bottom:0;width:248px;z-index:99999;background:#2c2c2c;
-    border-left:1px solid #444;color:#e0e0e0;font-size:12px;overflow-y:auto;}
+    border-left:1px solid #444;color:#e0e0e0;font-size:12px;overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:#4a4a4a transparent;}
+  .rvw-panel-resize{position:fixed;top:48px;bottom:0;width:8px;z-index:100000;cursor:ew-resize;
+    background:transparent;}
+  .rvw-panel-resize:hover,.rvw-panel-resize.rvw-dragging{background:rgba(13,153,255,.4);}
   .rvw-panel h3{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;
     padding:14px 14px 6px;margin:0;}
   .rvw-panel .rvw-empty{padding:8px 14px;color:#777;line-height:1.5;}
@@ -186,7 +190,13 @@
   .rvw-field textarea{resize:vertical;min-height:56px;line-height:1.4;}
   .rvw-elname{padding:10px 14px 0;font-weight:600;color:#fff;font-size:12px;word-break:break-all;}
   .rvw-layers{position:fixed;top:48px;left:0;bottom:0;width:220px;z-index:99999;background:#2c2c2c;
-    border-right:1px solid #444;color:#e0e0e0;overflow-y:auto;font-size:11px;}
+    border-right:1px solid #444;color:#e0e0e0;overflow-y:auto;font-size:11px;
+    scrollbar-width:thin;scrollbar-color:#4a4a4a transparent;}
+  .rvw-panel::-webkit-scrollbar,.rvw-layers::-webkit-scrollbar,.rvw-field textarea::-webkit-scrollbar{width:8px;}
+  .rvw-panel::-webkit-scrollbar-track,.rvw-layers::-webkit-scrollbar-track,.rvw-field textarea::-webkit-scrollbar-track{background:transparent;}
+  .rvw-panel::-webkit-scrollbar-thumb,.rvw-layers::-webkit-scrollbar-thumb,.rvw-field textarea::-webkit-scrollbar-thumb{
+    background:#4a4a4a;border-radius:4px;}
+  .rvw-panel::-webkit-scrollbar-thumb:hover,.rvw-layers::-webkit-scrollbar-thumb:hover,.rvw-field textarea::-webkit-scrollbar-thumb:hover{background:#5c5c5c;}
   .rvw-layers h3{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;
     padding:14px 12px 6px;margin:0;}
   .rvw-lrow{display:flex;align-items:center;gap:4px;height:26px;padding-right:8px;cursor:pointer;color:#ccc;white-space:nowrap;}
@@ -316,6 +326,36 @@
   panel.className = 'rvw-panel rvw';
   panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-empty">' + T.emptyHint + '</div>';
   document.body.appendChild(panel);
+
+  /* Kéo mở rộng panel Thuộc tính — field/nút bị wrap xấu khi panel quá hẹp (feedback 2026-08-05) */
+  var PANEL_W_MIN = 220, PANEL_W_MAX = 520;
+  var panelW = Math.min(PANEL_W_MAX, Math.max(PANEL_W_MIN, parseInt(localStorage.getItem('rvw-panel-w'), 10) || 248));
+  panel.style.width = panelW + 'px';
+  var panelResize = document.createElement('div');
+  panelResize.className = 'rvw-panel-resize rvw';
+  document.body.appendChild(panelResize);
+  function updatePanelResizeHandle() { panelResize.style.right = (panel.offsetWidth - 4) + 'px'; }
+  updatePanelResizeHandle();
+  (function () {
+    var dragging = null;
+    panelResize.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      dragging = { sx: e.clientX, w0: panel.offsetWidth };
+      panelResize.classList.add('rvw-dragging');
+    });
+    window.addEventListener('mousemove', function (e) {
+      if (!dragging) return;
+      var w = Math.min(PANEL_W_MAX, Math.max(PANEL_W_MIN, dragging.w0 + (dragging.sx - e.clientX)));
+      panel.style.width = w + 'px';
+      updatePanelResizeHandle();
+    });
+    window.addEventListener('mouseup', function () {
+      if (!dragging) return;
+      dragging = null;
+      panelResize.classList.remove('rvw-dragging');
+      localStorage.setItem('rvw-panel-w', parseInt(panel.style.width, 10));
+    });
+  })();
 
   /* ---------- Layers panel (trái): cây phân lớp, chọn đúng element, ẩn/hiện ---------- */
   var EYE_OPEN = '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>';
