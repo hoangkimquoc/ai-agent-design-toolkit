@@ -46,6 +46,7 @@
       savedSource: 'Đã lưu source:\n', exported: 'Đã lưu source + xuất PNG:\n',
       errSave: 'Lỗi lưu: ', errExport: 'Lỗi xuất: ', errServer: 'Không kết nối được review server: ',
       commentN: 'Comment ',
+      noServer: 'Không server — Lưu/Xuất PNG bị ẩn. Mở qua link http://127.0.0.1:xxxx (lệnh open-review.py), đừng mở file trực tiếp.',
       layerNames: { 'layer-bg': 'Nền (Background)', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Nội dung (Text/UI)' }
     },
     en: {
@@ -70,6 +71,7 @@
       savedSource: 'Source saved:\n', exported: 'Source saved + PNG exported:\n',
       errSave: 'Save error: ', errExport: 'Export error: ', errServer: 'Cannot reach review server: ',
       commentN: 'Comment ',
+      noServer: 'No server — Save/Export PNG hidden. Open via http://127.0.0.1:xxxx (the open-review.py command), not the raw file.',
       layerNames: { 'layer-bg': 'Background', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Content (Text/UI)' }
     }
   };
@@ -134,6 +136,8 @@
   .rvw-topbar{position:fixed;top:0;left:0;right:0;height:48px;z-index:100000;display:flex;align-items:center;
     gap:4px;padding:0 12px;background:#2c2c2c;border-bottom:1px solid #444;color:#e0e0e0;font-size:12px;}
   .rvw-topbar .rvw-title{font-weight:600;margin-right:16px;color:#fff;}
+  .rvw-srvstatus{background:#4a3410;color:#f2b84b;border:1px solid #6b4c17;border-radius:10px;
+    padding:3px 10px;font-size:11px;font-weight:600;margin-right:16px;}
   .rvw-tool{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:none;border-radius:6px;
     background:transparent;color:#ccc;font:500 12px Inter,'Segoe UI',sans-serif;cursor:pointer;}
   .rvw-tool:hover{background:#3a3a3a;}
@@ -211,6 +215,13 @@
   .rvw-btnrow button:hover{background:#454749;}
   .rvw-btnrow button.rvw-on{background:#0d99ff;color:#fff;}
   .rvw-btnrow button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;}
+  /* Hàng 3 nút đều nhau (căn trái/giữa/phải) — KHÔNG wrap, khác với rvw-btnrow 4-nút 2x2 ở trên */
+  .rvw-btnrow3{display:flex;gap:6px;}
+  .rvw-btnrow3 button{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;
+    background:#3a3a3a;border:none;border-radius:5px;color:#ddd;padding:8px 4px;cursor:pointer;}
+  .rvw-btnrow3 button:hover{background:#454749;}
+  .rvw-btnrow3 button.rvw-on{background:#0d99ff;color:#fff;}
+  .rvw-btnrow3 button svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;}
   .rvw-hoverbox{position:fixed;z-index:99997;pointer-events:none;border:1px solid rgba(13,153,255,.55);}
   .rvw-guide{position:fixed;z-index:99998;background:#f24822;pointer-events:none;display:none;}
   .rvw-guide.rvw-gv{width:1px;}
@@ -278,6 +289,7 @@
   // Nhóm theo logic tool: modes │ trợ giúp chỉnh sửa │ đầu ra local │ vòng AI ──── status · settings · zoom
   topbar.innerHTML =
     '<span class="rvw-title">Design Review</span>' +
+    '<span class="rvw-srvstatus" id="rvw-srvstatus" style="display:none"></span>' +
     '<button class="rvw-tool rvw-active" id="rvw-mode-select" title="' + T.tipSelect + '">' + ICONS.select + T.select + '</button>' +
     '<button class="rvw-tool" id="rvw-mode-comment" title="' + T.tipComment + '">' + ICONS.comment + T.comment + '</button>' +
     '<span class="rvw-sep"></span>' +
@@ -551,7 +563,7 @@
       if (curAlign === 'start' || curAlign === '') curAlign = 'left';
       html += '<div class="rvw-field"><label>' + T.fs + '</label><input id="rvw-fs" type="number" step="1" value="' + Math.round(fs) + '"></div>' +
         '<div class="rvw-field"><label>' + T.align + '</label></div>' +
-        '<div class="rvw-field rvw-wide rvw-btnrow">' +
+        '<div class="rvw-field rvw-wide rvw-btnrow3">' +
         '<button id="rvw-al-left" title="' + T.alLeft + '" class="' + (curAlign === 'left' ? 'rvw-on' : '') + '">' + ICONS.alignLeft + '</button>' +
         '<button id="rvw-al-center" title="' + T.alCenter + '" class="' + (curAlign === 'center' ? 'rvw-on' : '') + '">' + ICONS.alignCenter + '</button>' +
         '<button id="rvw-al-right" title="' + T.alRight + '" class="' + (curAlign === 'right' ? 'rvw-on' : '') + '">' + ICONS.alignRight + '</button></div>' +
@@ -1235,9 +1247,15 @@
     // và cần giữ để file source lưu về vẫn mở review được lần sau
     return '<!DOCTYPE html>\n' + root.outerHTML;
   }
+  function showNoServer() {
+    var b = document.getElementById('rvw-srvstatus');
+    if (!b) return;
+    b.textContent = T.noServer;
+    b.style.display = '';
+  }
   if (location.protocol.indexOf('http') === 0) {
     fetch('/__review__/ping').then(function (r) { return r.json(); }).then(function (j) {
-      if (!j.ok) return;
+      if (!j.ok) { showNoServer(); return; }
       var fileName = location.pathname.split('/').pop();
       // Nút Lưu — ghi đè source HTML (backup .bak), 0 token
       var saveBtn = document.createElement('button');
@@ -1272,6 +1290,10 @@
           alert(T.errServer + err);
         });
       };
-    }).catch(function () { /* mở qua file:// → không có server, dùng flow feedback/Hoàn tất */ });
+    }).catch(showNoServer);
+  } else {
+    // Mở trực tiếp qua file:// (không phải link http://127.0.0.1:xxxx của open-review.py)
+    // → không có review-server, Lưu/Xuất PNG không thể hoạt động (không ghi được xuống đĩa).
+    showNoServer();
   }
 })();
