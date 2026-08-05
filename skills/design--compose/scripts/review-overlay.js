@@ -33,6 +33,7 @@
       multiHint: 'Kéo để di chuyển cả nhóm · mũi tên nudge · Delete ẩn tất cả · Shift+click để thêm/bớt · Esc bỏ chọn.',
       rot: 'Xoay (°)', op: 'Mờ (%)', fs: 'Cỡ chữ (px)', content: 'Nội dung',
       flipH: 'Lật ngang', flipV: 'Lật dọc', zUp: 'Lên trước', zDown: 'Ra sau',
+      align: 'Căn chữ', alLeft: 'Trái', alCenter: 'Giữa', alRight: 'Phải',
       notePoint: 'Ghi chú cho vị trí này...', noteRegion: 'Ghi chú cho vùng này...',
       cancel: 'Hủy', saveNote: 'Lưu',
       tipSelect: 'Chọn và di chuyển (V)', tipComment: 'Đặt ghi chú (C)',
@@ -56,6 +57,7 @@
       multiHint: 'Drag to move the group · arrows to nudge · Delete hides all · Shift+click to add/remove · Esc to deselect.',
       rot: 'Rotate (°)', op: 'Opacity (%)', fs: 'Font size (px)', content: 'Content',
       flipH: 'Flip H', flipV: 'Flip V', zUp: 'Forward', zDown: 'Backward',
+      align: 'Text align', alLeft: 'Left', alCenter: 'Center', alRight: 'Right',
       notePoint: 'Note for this spot...', noteRegion: 'Note for this region...',
       cancel: 'Cancel', saveNote: 'Save',
       tipSelect: 'Select & move (V)', tipComment: 'Add comment (C)',
@@ -203,9 +205,12 @@
   .rvw-selbox .rvw-h.rot{left:50%;top:-28px;margin-left:-5px;border-radius:50%;pointer-events:auto;cursor:grab;}
   .rvw-selbox .rvw-rotline{position:absolute;left:50%;top:-19px;width:1px;height:19px;background:#0d99ff;}
   .rvw-btnrow{display:flex;gap:6px;flex-wrap:wrap;}
-  .rvw-btnrow button{flex:1 1 45%;background:#3a3a3a;border:none;border-radius:5px;color:#ddd;
+  .rvw-btnrow button{flex:1 1 45%;display:inline-flex;align-items:center;justify-content:center;
+    background:#3a3a3a;border:none;border-radius:5px;color:#ddd;
     font:500 11px Inter,sans-serif;padding:6px 4px;cursor:pointer;}
   .rvw-btnrow button:hover{background:#454749;}
+  .rvw-btnrow button.rvw-on{background:#0d99ff;color:#fff;}
+  .rvw-btnrow button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;}
   .rvw-hoverbox{position:fixed;z-index:99997;pointer-events:none;border:1px solid rgba(13,153,255,.55);}
   .rvw-guide{position:fixed;z-index:99998;background:#f24822;pointer-events:none;display:none;}
   .rvw-guide.rvw-gv{width:1px;}
@@ -256,7 +261,10 @@
     grid: '<svg viewBox="0 0 16 16"><path d="M2 5.5h12M2 10.5h12M5.5 2v12M10.5 2v12"/></svg>',
     undo: '<svg viewBox="0 0 16 16"><path d="M6.5 3 3 6.5 6.5 10"/><path d="M3 6.5h6.2a3.8 3.8 0 0 1 0 7.6H7.5"/></svg>',
     check: '<svg viewBox="0 0 16 16"><path d="M2.5 8.5 6.5 12.5 13.5 4"/></svg>',
-    image: '<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.5" cy="6" r="1.2"/><path d="M2.5 12l3.5-4 3 3.5 2-2.5 2.5 3"/></svg>'
+    image: '<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.5" cy="6" r="1.2"/><path d="M2.5 12l3.5-4 3 3.5 2-2.5 2.5 3"/></svg>',
+    alignLeft: '<svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h10"/></svg>',
+    alignCenter: '<svg viewBox="0 0 16 16"><path d="M2 4h12M4 8h8M3 12h10"/></svg>',
+    alignRight: '<svg viewBox="0 0 16 16"><path d="M2 4h12M6 8h8M4 12h10"/></svg>'
   };
   // Cờ SVG (Windows không render emoji cờ)
   var FLAGS = {
@@ -539,7 +547,14 @@
       '<button id="rvw-zup">' + T.zUp + '</button><button id="rvw-zdown">' + T.zDown + '</button></div>';
     if (isText(el)) {
       var fs = parseFloat(getComputedStyle(el).fontSize);
+      var curAlign = getComputedStyle(el).textAlign;
+      if (curAlign === 'start' || curAlign === '') curAlign = 'left';
       html += '<div class="rvw-field"><label>' + T.fs + '</label><input id="rvw-fs" type="number" step="1" value="' + Math.round(fs) + '"></div>' +
+        '<div class="rvw-field"><label>' + T.align + '</label></div>' +
+        '<div class="rvw-field rvw-wide rvw-btnrow">' +
+        '<button id="rvw-al-left" title="' + T.alLeft + '" class="' + (curAlign === 'left' ? 'rvw-on' : '') + '">' + ICONS.alignLeft + '</button>' +
+        '<button id="rvw-al-center" title="' + T.alCenter + '" class="' + (curAlign === 'center' ? 'rvw-on' : '') + '">' + ICONS.alignCenter + '</button>' +
+        '<button id="rvw-al-right" title="' + T.alRight + '" class="' + (curAlign === 'right' ? 'rvw-on' : '') + '">' + ICONS.alignRight + '</button></div>' +
         '<div class="rvw-field rvw-wide"><label>' + T.content + '</label><textarea id="rvw-text">' + el.textContent.trim() + '</textarea></div>';
     }
     html += '</div>';
@@ -594,6 +609,16 @@
       recordProp(el, 'fontSize', parseInt(this.value, 10) + 'px');
       refreshBoxes();
     }.bind(document.getElementById('rvw-fs')));
+    ['left', 'center', 'right'].forEach(function (al) {
+      var b = document.getElementById('rvw-al-' + al);
+      if (!b) return;
+      b.onclick = function () {
+        pushUndo(el);
+        el.style.textAlign = al;
+        recordProp(el, 'textAlign', al);
+        refreshBoxes(); renderPanel();
+      };
+    });
     apply('rvw-text', function () {
       var sel = selectorOf(el);
       if (!(sel in changes.texts)) changes.texts[sel] = { before: el.textContent.trim(), after: '' };
@@ -650,7 +675,7 @@
   /* Xoay/lật: compose lên transform gốc của element (giữ translateX(-50%) v.v.) */
   var elState = new Map();
   function getState(el) {
-    if (!elState.has(el)) elState.set(el, { rot: 0, fx: false, fy: false });
+    if (!elState.has(el)) elState.set(el, { rot: 0, fx: false, fy: false, scale: 1 });
     return elState.get(el);
   }
   function applyTransform(el) {
@@ -681,11 +706,13 @@
     if (s.rot) t += ' rotate(' + s.rot + 'deg)';
     if (s.fx) t += ' scaleX(-1)';
     if (s.fy) t += ' scaleY(-1)';
+    if (s.scale && s.scale !== 1) t += ' scale(' + s.scale.toFixed(3) + ')';
     el.style.transform = t.trim();
     recordProp(el, 'transform', el.style.transform);
     recordProp(el, 'rotate', s.rot);
     recordProp(el, 'flipX', s.fx);
     recordProp(el, 'flipY', s.fy);
+    recordProp(el, 'scale', s.scale);
   }
 
   /* ================= undo (Ctrl+Z) =================
@@ -843,9 +870,12 @@
       var rdy = (e.clientY - resizing.sy) / dz2;
       var diag0 = Math.sqrt(resizing.w * resizing.w + resizing.h * resizing.h) || 1;
       var delta = (rdx + rdy) / Math.SQRT2; // chiếu delta chuột lên đường chéo handle
-      var scale = Math.max(0.05, (diag0 + delta) / diag0);
-      resizing.el.style.width = Math.max(12, resizing.w * scale).toFixed(1) + 'px';
-      resizing.el.style.height = Math.max(12, resizing.h * scale).toFixed(1) + 'px';
+      var factor = Math.max(0.05, (diag0 + delta) / diag0);
+      // scale = transform, KHÔNG đổi width/height: đổi box size không phóng to chữ/icon
+      // bên trong group flex (vd .chips) — chỉ tạo khoảng trống, nhìn như "chỉ dãn ngang"
+      // (bug 2026-08-05). transform:scale() phóng to đều toàn bộ nội dung, giống Figma.
+      getState(resizing.el).scale = Math.max(0.05, resizing.scale0 * factor);
+      applyTransform(resizing.el);
       refreshBoxes();
     }
     if (rotating) {
@@ -873,7 +903,11 @@
       ensurePositioned(selected);
       var rse = selected.getBoundingClientRect();
       var dzse = zoom || 1;
-      resizing = { el: selected, sx: e.clientX, sy: e.clientY, w: rse.width / dzse, h: rse.height / dzse };
+      resizing = {
+        el: selected, sx: e.clientX, sy: e.clientY,
+        w: rse.width / dzse, h: rse.height / dzse,
+        scale0: getState(selected).scale || 1
+      };
       return;
     }
     if (mode !== 'select') return;
