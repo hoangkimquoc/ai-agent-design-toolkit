@@ -92,7 +92,7 @@ python <path-to-skill>/scripts/fetch-fonts.py \
 7. Element cần tách nền → `rmbg <img> -m briaai -o <out>.png` (cài: `npm i -g rmbg-cli`), rồi hậu xử lý (kiểm chứng 2026-08-05):
    - **Lọc nhiễu alpha (bắt buộc)**: briaai để lại mảng alpha loang lổ khắp ảnh — giữ đúng khối liền mạch lớn nhất (`scipy.ndimage.label` trên alpha > 100, dilate 3px giữ mép mềm), các mảng rời rạc set alpha = 0.
    - **Trim sát vật thể (bắt buộc — quy tắc chuẩn mục 6)**: chạy `trim-alpha.py` sau khi lọc nhiễu; nhờ slot-based nên trim không ảnh hưởng tọa độ overlay, nhưng quyết định vật thể fill khít slot và bóng/floor sát chân.
-   - Prompt element ghi rõ "isolated on flat plain solid light gray (#EDEDED) background, soft contact shadow only" — Codex image_gen KHÔNG xuất alpha trực tiếp.
+   - Prompt element: nền PHẲNG đồng nhất, tông NGƯỢC với palette chủ thể (chủ thể sáng/trắng → xám trung tính "#B0B0B0"–"#D0D0D0"; chủ thể tối → xám sáng "#EDEDED"; mặc định "#EDEDED"; CẤM nền cùng tông chủ thể, CẤM chroma xanh lá/magenta — gen model bleed màu vào mép lông/tóc), "soft contact shadow only". Lý do: rmbg là segmentation ngữ nghĩa chứ không phải chroma-key — cần tương phản chủ thể–nền, không cần màu key. Codex image_gen KHÔNG xuất alpha trực tiếp.
 
 ## Bước 2.5 — Adjustment layers (tùy chọn, non-destructive)
 
