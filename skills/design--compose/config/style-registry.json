@@ -1,0 +1,62 @@
+{
+  "glassmorphism": {
+    "label": "Glassmorphism — kính mờ hiện đại, chiều sâu",
+    "css_class": "style-glassmorphism",
+    "palette": {
+      "bg_base": "#0f172a",
+      "fg": "#f8fafc",
+      "fg_muted": "rgba(248,250,252,0.75)",
+      "accent": "#38bdf8",
+      "cta_bg": "#38bdf8",
+      "cta_fg": "#0f172a",
+      "scrim": "rgba(15,23,42,0.45)"
+    },
+    "fonts": { "heading": "'Be Vietnam Pro', system-ui, sans-serif", "body": "'Be Vietnam Pro', system-ui, sans-serif", "heading_weight": 800 },
+    "art_direction": "Modern tech aesthetic, deep navy background with soft glowing gradients (cyan, indigo), translucent glass panels, subtle bokeh light particles, smooth depth of field, premium and airy, high contrast lighting, no text, no letters, no watermark."
+  },
+  "minimal-swiss": {
+    "label": "Minimal Swiss — tối giản, lưới chặt, nhiều khoảng trắng",
+    "css_class": "style-minimal-swiss",
+    "palette": {
+      "bg_base": "#f5f5f4",
+      "fg": "#1c1917",
+      "fg_muted": "#57534e",
+      "accent": "#dc2626",
+      "cta_bg": "#1c1917",
+      "cta_fg": "#fafaf9",
+      "scrim": "rgba(245,245,244,0.55)"
+    },
+    "fonts": { "heading": "'Be Vietnam Pro', 'Helvetica Neue', sans-serif", "body": "'Be Vietnam Pro', 'Helvetica Neue', sans-serif", "heading_weight": 700 },
+    "art_direction": "Swiss graphic design style, flat vector illustration, generous white space, strict grid composition, limited palette (off-white, near-black, one red accent), clean geometric shapes, no gradients, no text, no letters, no watermark."
+  },
+  "dark-premium": {
+    "label": "Dark Premium — nền tối sang trọng, ánh kim",
+    "css_class": "style-dark-premium",
+    "palette": {
+      "bg_base": "#09090b",
+      "fg": "#fafafa",
+      "fg_muted": "rgba(250,250,250,0.7)",
+      "accent": "#eab308",
+      "cta_bg": "#eab308",
+      "cta_fg": "#09090b",
+      "scrim": "rgba(9,9,11,0.55)"
+    },
+    "fonts": { "heading": "'Be Vietnam Pro', system-ui, sans-serif", "body": "'Be Vietnam Pro', system-ui, sans-serif", "heading_weight": 800 },
+    "art_direction": "Luxury premium aesthetic, near-black background, dramatic rim lighting, gold and champagne accents, subtle metallic textures, cinematic contrast, elegant and expensive mood, no text, no letters, no watermark."
+  },
+  "neo-brutalist": {
+    "label": "Neo-Brutalist — màu gắt, viền đậm, bóng cứng",
+    "css_class": "style-neo-brutalist",
+    "palette": {
+      "bg_base": "#fef08a",
+      "fg": "#111111",
+      "fg_muted": "#333333",
+      "accent": "#7c3aed",
+      "cta_bg": "#7c3aed",
+      "cta_fg": "#ffffff",
+      "scrim": "rgba(254,240,138,0.5)"
+    },
+    "fonts": { "heading": "'Be Vietnam Pro', system-ui, sans-serif", "body": "'Be Vietnam Pro', system-ui, sans-serif", "heading_weight": 900 },
+    "art_direction": "Neo-brutalist design, bold saturated flat colors (yellow, violet, black), thick black outlines, hard offset shadows, playful oversized geometric shapes, sticker-like elements, raw and energetic, no text, no letters, no watermark."
+  }
+}
