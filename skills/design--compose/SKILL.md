@@ -153,6 +153,15 @@ Nhận feedback JSON từ user → áp `texts` / `moves` / `pins` vào source HT
 
 Đọc lại PNG bằng Read tool và kiểm: (1) chữ tiếng Việt đủ dấu, không tràn khung; (2) tương phản chữ–nền đạt (nheo mắt vẫn đọc được title); (3) element không đè text; (4) căn lề thẳng hàng theo grid. Lỗi → sửa HTML, chụp lại. Giao user: **PNG + file HTML nguồn** (để user tự đổi text sau này không tốn lượt gen).
 
+## Bước 5 — Wrap-up phiên (knowledge)
+
+Cuối mỗi phiên thiết kế, agent PHẢI chốt sổ kinh nghiệm vào `knowledge/` (cạnh thư mục skills):
+
+1. Tạo `knowledge/sessions/YYYY-MM-DD-<slug>.md`: đã làm gì, feedback nào của user, bài học nào (mẫu: session 2026-08-05 có sẵn).
+2. Mẹo đã kiểm chứng ≥ 2 lần → thăng cấp thành `knowledge/patterns/<tên>.md`.
+3. Kinh nghiệm prompt gen ảnh → ghi vào `knowledge/prompts/<backend>.md`.
+4. Quy tắc sống còn → đề xuất user cho ghi thẳng vào SKILL.md này.
+
 ## Fonts
 
 **Quy trình**: chọn font theo tính cách (Bước 0.5) → `scripts/fetch-fonts.py` tải subset VN+latin về `<output-dir>/fonts/` → link `fonts.css` vào design file. Font đi theo từng thiết kế, KHÔNG cố định một bộ cho mọi design.
@@ -168,7 +177,8 @@ Bộ cache khởi điểm tại [assets/fonts/](assets/fonts/) (Be Vietnam Pro +
 
 SKILL.md này là **sổ tay sống** — cách đúng để dùng nó là ghi thêm kinh nghiệm của chính bạn:
 
-- Gặp bài học mới trong lúc làm → ghi thẳng vào bước tương ứng, kèm ngày (như các mục "kiểm chứng 2026-08-05" có sẵn — đều từ lỗi thật).
+- Bài học theo phiên → `knowledge/sessions/`; kỹ thuật tái dùng → `knowledge/patterns/`; prompt → `knowledge/prompts/` (xem [knowledge/README.md](../../knowledge/README.md)).
+- Quy tắc sống còn đã kiểm chứng → ghi thẳng vào bước tương ứng của file này, kèm ngày (như các mục "kiểm chứng 2026-08-05" — đều từ lỗi thật).
 - Style mới → thêm entry vào [config/style-registry.json](config/style-registry.json) với palette + art_direction block.
 - Kinh nghiệm prompt cho backend gen ảnh của bạn → tự ghi chú và bổ sung vào Bước 0.5 / phần asset.
 

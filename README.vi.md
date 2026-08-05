@@ -36,6 +36,7 @@ skills/design--compose/
     ├── fetch-fonts.py          # Tải Google Fonts subset tiếng Việt về máy
     └── trim-alpha.py           # Cắt viền trong suốt của ảnh tách nền
 workflows/design-compose-pipeline.md  # Pipeline đầy đủ: gen AI → tách nền → ghép → review
+knowledge/                            # sessions/ · patterns/ · prompts/ — experience log (see knowledge/README.md)
 ```
 
 ## Yêu cầu
@@ -86,6 +87,7 @@ python skills/design--compose/scripts/review-server.py --dir <thư-mục-design>
 Bộ công cụ chỉ đóng gói các quy tắc lõi — nó được thiết kế để lớn lên theo quá trình dùng. Bản gốc được xây qua hàng chục vòng feedback người thật, và trải nghiệm của bạn sẽ khác:
 
 - **Thêm style riêng** vào `config/style-registry.json` (palette + khối `art_direction` cho prompt AI)
+- **Session notes** — cuối mỗi phiên, agent ghi lại diễn biến vào `knowledge/sessions/`, mẹo kiểm chứng lên `knowledge/patterns/`, sổ prompt theo backend ở `knowledge/prompts/` (xem [knowledge/README.md](knowledge/README.md); đã seed sẵn bằng chính phiên xây dựng bộ công cụ)
 - **Ghi bài học mới thẳng vào `SKILL.md`** — nó là sổ tay sống cho AI agent của bạn, không phải spec đóng băng. Mọi ghi chú cảnh báo trong đó đều đến từ một lỗi thật bị bắt khi review.
 - **Prompt-craft nâng cao** cho gen ảnh AI chủ đích không đóng gói — mỗi backend một tính nết. Hãy giữ sổ prompt riêng và dạy lại agent của bạn theo đúng cách đó.
 

@@ -36,6 +36,7 @@ skills/design--compose/
     ├── fetch-fonts.py          # Download Google Fonts (Vietnamese subset) for offline use
     └── trim-alpha.py           # Trim transparent padding from cut-out PNGs
 workflows/design-compose-pipeline.md  # Full pipeline: AI gen → background removal → compose → review
+knowledge/                            # sessions/ · patterns/ · prompts/ — experience log (see knowledge/README.md)
 ```
 
 ## Requirements
@@ -88,6 +89,7 @@ UI auto-detects your browser language (Vietnamese/English) — toggle anytime wi
 This toolkit ships with the core rules — but it is designed to grow with use. It was built through dozens of real human-feedback loops, and yours will differ:
 
 - **Add your own styles** to `config/style-registry.json` (a palette + an `art_direction` prompt block per style)
+- **Write session notes** — after each design session your agent logs what happened to `knowledge/sessions/`, promotes verified tricks to `knowledge/patterns/`, and keeps per-backend prompt notes in `knowledge/prompts/` (see [knowledge/README.md](knowledge/README.md); seeded with the toolkit's own build session)
 - **Append lessons to `SKILL.md`** as you hit them — it is a living handbook for your AI agent, not a frozen spec. Every warning note in it came from a real mistake caught in review.
 - **Advanced prompt-craft** for AI image generation is intentionally not bundled — every backend behaves differently. Keep your own prompt notes and teach them to your agent the same way.
 
