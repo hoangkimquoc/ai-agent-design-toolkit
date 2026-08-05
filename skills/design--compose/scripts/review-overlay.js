@@ -607,7 +607,17 @@
      frame vì element con định vị theo cha (slot/block), % frame làm nó teleport.
      Element static (chữ trong flow) → tự chuyển position:relative để dời được. */
   function ensurePositioned(el) {
-    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    var cs = getComputedStyle(el);
+    if (cs.position === 'static') { el.style.position = 'relative'; return; }
+    // Element absolute neo bằng left+right (hoặc top+bottom) không có width/height tường minh:
+    // khi drag ta set right/bottom = auto → mất neo → co lại ôm content ("hug", bug 2026-08-05).
+    // Đóng băng kích thước hiện tại trước khi thả neo — đúng hành vi Figma: move không đổi size.
+    if (cs.position === 'absolute' || cs.position === 'fixed') {
+      var dz = zoom || 1;
+      var r = el.getBoundingClientRect();
+      if (!el.style.width) el.style.width = (r.width / dz).toFixed(1) + 'px';
+      if (!el.style.height) el.style.height = (r.height / dz).toFixed(1) + 'px';
+    }
   }
   function moveTo(xPct, yPct) {
     if (!selected) return;
