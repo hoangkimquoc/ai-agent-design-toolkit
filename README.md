@@ -1,4 +1,4 @@
-# ai-agent-design-compose
+# ai-agent-design-toolkit
 
 **Design-tool thinking for AI agents.** Compose marketing visuals with layered HTML (Background → Art → Adjustment → Text), review them in a Figma-like browser editor, and export pixel-perfect PNGs — with zero AI tokens spent on the review/export loop.
 
@@ -106,7 +106,7 @@ If this toolkit saves you time, you can support its development:
 
 ## License
 
-Code: [MIT](LICENSE). Bundled fonts (Be Vietnam Pro, Baloo 2): [SIL Open Font License 1.1](skills/design--compose/assets/fonts/OFL.txt).
+Code: [AGPL-3.0](LICENSE) — free to use, modify, even sell; but any distributed or network-served derivative must publish its full source under the same license. Bundled fonts (Be Vietnam Pro, Baloo 2): [SIL Open Font License 1.1](skills/design--compose/assets/fonts/OFL.txt).
 
 ---
 Built through an AI-agent pair-design workflow — Hoang Kim Quoc, 2026 · [Ko-fi](https://ko-fi.com/hoangkimquoc)

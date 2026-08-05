@@ -1,4 +1,4 @@
-# ai-agent-design-compose
+# ai-agent-design-toolkit
 
 **Tư duy design tool cho AI agent.** Ghép ảnh truyền thông bằng HTML phân lớp (Nền → Đồ họa → Adjustment → Chữ), review trên browser như Figma, xuất PNG chuẩn pixel — vòng review/xuất không tốn token AI nào.
 
@@ -99,7 +99,7 @@ Nếu bộ công cụ này giúp bạn tiết kiệm thời gian, có thể mờ
 
 ## License
 
-Code: [MIT](LICENSE). Fonts đi kèm (Be Vietnam Pro, Baloo 2): [SIL Open Font License 1.1](skills/design--compose/assets/fonts/OFL.txt).
+Code: [AGPL-3.0](LICENSE) — tự do dùng, sửa, kể cả bán; nhưng mọi bản phân phối hoặc chạy thành dịch vụ mạng phải công khai toàn bộ mã nguồn theo cùng license. Fonts đi kèm (Be Vietnam Pro, Baloo 2): [SIL Open Font License 1.1](skills/design--compose/assets/fonts/OFL.txt).
 
 ---
 Xây qua quy trình pair-design người + AI agent — Hoàng Kim Quốc, 2026 · [Ko-fi](https://ko-fi.com/hoangkimquoc)
