@@ -93,7 +93,9 @@
   .rvw-tool.rvw-active{background:#0d99ff;color:#fff;}
   .rvw-tool svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
   .rvw-sep{width:1px;height:20px;background:#444;margin:0 6px;}
-  .rvw-zoom{display:flex;align-items:center;gap:2px;margin-left:auto;color:#aaa;}
+  .rvw-group{display:flex;align-items:center;gap:4px;}
+  .rvw-group:empty{display:none;}
+  .rvw-zoom{display:flex;align-items:center;gap:2px;margin-left:4px;color:#aaa;}
   .rvw-zoom button{width:26px;height:26px;border:none;border-radius:4px;background:transparent;color:#ccc;cursor:pointer;font-size:14px;}
   .rvw-zoom button:hover{background:#3a3a3a;}
   .rvw-zoom .rvw-zval{min-width:44px;text-align:center;}
@@ -104,7 +106,7 @@
   .rvw-png{background:#e7b84c;color:#1a1a1a;font-weight:700;}
   .rvw-png:hover{background:#d9a93f;}
   .rvw-png:disabled{opacity:.6;cursor:wait;}
-  .rvw-badge{background:#3a3a3a;border-radius:10px;padding:3px 10px;color:#aaa;margin-left:8px;}
+  .rvw-badge{background:#3a3a3a;border-radius:10px;padding:3px 10px;color:#aaa;margin-left:auto;}
   .rvw-panel{position:fixed;top:48px;right:0;bottom:0;width:248px;z-index:99999;background:#2c2c2c;
     border-left:1px solid #444;color:#e0e0e0;font-size:12px;overflow-y:auto;}
   .rvw-panel h3{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;
@@ -208,18 +210,21 @@
   /* ================= chrome ================= */
   var topbar = document.createElement('div');
   topbar.className = 'rvw-topbar rvw';
+  // Nhóm theo logic tool: modes │ trợ giúp chỉnh sửa │ đầu ra local │ vòng AI ──── status · settings · zoom
   topbar.innerHTML =
     '<span class="rvw-title">Design Review</span>' +
     '<button class="rvw-tool rvw-active" id="rvw-mode-select" title="' + T.tipSelect + '">' + ICONS.select + T.select + '</button>' +
     '<button class="rvw-tool" id="rvw-mode-comment" title="' + T.tipComment + '">' + ICONS.comment + T.comment + '</button>' +
+    '<span class="rvw-sep"></span>' +
     '<button class="rvw-tool rvw-active" id="rvw-snap" title="' + T.tipSnap + '">' + ICONS.grid + T.snap + '</button>' +
     '<button class="rvw-tool" id="rvw-undo" title="' + T.tipUndo + '">' + ICONS.undo + '</button>' +
-    '<button class="rvw-tool" id="rvw-lang" title="Language / Ngôn ngữ">' + (lang === 'vi' ? 'EN' : 'VI') + '</button>' +
     '<span class="rvw-sep"></span>' +
+    '<span class="rvw-group" id="rvw-actions"></span>' +
     '<button class="rvw-tool rvw-export" id="rvw-export" title="' + T.tipExport + '">' + ICONS.export + T.exportFb + '</button>' +
     '<span class="rvw-badge" id="rvw-count">0 ' + T.changes + '</span>' +
+    '<button class="rvw-tool" id="rvw-lang" title="Language / Ngôn ngữ">' + (lang === 'vi' ? 'EN' : 'VI') + '</button>' +
     '<span class="rvw-zoom"><button id="rvw-zout">−</button><span class="rvw-zval" id="rvw-zval">100%</span>' +
-    '<button id="rvw-zin">+</button><button id="rvw-zfit" title="Vừa màn hình" style="width:auto;padding:0 8px;font-size:11px;">Fit</button></span>';
+    '<button id="rvw-zin">+</button><button id="rvw-zfit" title="Fit" style="width:auto;padding:0 8px;font-size:11px;">Fit</button></span>';
   document.body.appendChild(topbar);
 
   var panel = document.createElement('div');
@@ -1093,7 +1098,7 @@
       saveBtn.id = 'rvw-save';
       saveBtn.title = T.tipSave;
       saveBtn.innerHTML = ICONS.check + T.save;
-      document.getElementById('rvw-export').after(saveBtn);
+      document.getElementById('rvw-actions').appendChild(saveBtn);
       saveBtn.onclick = function () {
         fetch('/__review__/save?name=' + encodeURIComponent(fileName), { method: 'POST', body: cleanHTML() })
           .then(function (r) { return r.json(); })
@@ -1106,7 +1111,7 @@
       btn.id = 'rvw-png';
       btn.title = T.tipPng;
       btn.innerHTML = ICONS.image + T.png;
-      saveBtn.after(btn);
+      document.getElementById('rvw-actions').appendChild(btn);
       btn.onclick = function () {
         btn.disabled = true; btn.innerHTML = ICONS.image + T.shooting;
         fetch('/__review__/export?w=' + frame.offsetWidth + '&h=' + frame.offsetHeight +
