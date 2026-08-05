@@ -1,4 +1,4 @@
-# ai-design-compose
+# ai-agent-design-compose
 
 **Design-tool thinking for AI agents.** Compose marketing visuals with layered HTML (Background → Art → Adjustment → Text), review them in a Figma-like browser editor, and export pixel-perfect PNGs — with zero AI tokens spent on the review/export loop.
 

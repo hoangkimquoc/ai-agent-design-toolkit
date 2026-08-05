@@ -1,4 +1,4 @@
-# ai-design-compose
+# ai-agent-design-compose
 
 **Tư duy design tool cho AI agent.** Ghép ảnh truyền thông bằng HTML phân lớp (Nền → Đồ họa → Adjustment → Chữ), review trên browser như Figma, xuất PNG chuẩn pixel — vòng review/xuất không tốn token AI nào.
 
