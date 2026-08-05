@@ -166,6 +166,14 @@
   .rvw-png:hover{background:#d9a93f;}
   .rvw-png:disabled{opacity:.6;cursor:wait;}
   .rvw-badge{background:#3a3a3a;border-radius:10px;padding:3px 10px;color:#aaa;margin-left:auto;}
+  .rvw-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(6px);
+    background:#2c2c2c;border:1px solid #444;border-left:3px solid #666;border-radius:8px;
+    padding:12px 18px;color:#e0e0e0;font-size:13px;line-height:1.4;z-index:200000;
+    box-shadow:0 8px 24px rgba(0,0,0,.45);max-width:380px;white-space:pre-line;
+    opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;}
+  .rvw-toast.rvw-show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .rvw-toast.rvw-ok{border-left-color:#1f9d55;}
+  .rvw-toast.rvw-err{border-left-color:#e5484d;}
   .rvw-panel{position:fixed;top:48px;right:0;bottom:0;width:248px;z-index:99999;background:#2c2c2c;
     border-left:1px solid #444;color:#e0e0e0;font-size:12px;overflow-y:auto;
     scrollbar-width:thin;scrollbar-color:#4a4a4a transparent;}
@@ -224,20 +232,15 @@
   .rvw-selbox .rvw-h.se{right:-5px;bottom:-5px;pointer-events:auto;cursor:nwse-resize;}
   .rvw-selbox .rvw-h.rot{left:50%;top:-28px;margin-left:-5px;border-radius:50%;pointer-events:auto;cursor:grab;}
   .rvw-selbox .rvw-rotline{position:absolute;left:50%;top:-19px;width:1px;height:19px;background:#0d99ff;}
-  .rvw-btnrow{display:flex;gap:6px;flex-wrap:wrap;}
-  .rvw-btnrow button{flex:1 1 45%;display:inline-flex;align-items:center;justify-content:center;
-    background:#3a3a3a;border:none;border-radius:5px;color:#ddd;
-    font:500 11px Inter,sans-serif;padding:6px 4px;cursor:pointer;}
-  .rvw-btnrow button:hover{background:#454749;}
-  .rvw-btnrow button.rvw-on{background:#0d99ff;color:#fff;}
-  .rvw-btnrow button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;}
-  /* Hàng 3 nút đều nhau (căn trái/giữa/phải) — KHÔNG wrap, khác với rvw-btnrow 4-nút 2x2 ở trên */
-  .rvw-btnrow3{display:flex;gap:6px;}
-  .rvw-btnrow3 button{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;
+  /* Hàng nút đều nhau (căn chữ 3 nút, lật/lớp 4 nút) — PHẢI ép flex-direction:row tường minh,
+     vì .rvw-field (cha) set flex-direction:column, cascade đè khiến nút xếp dọc thay vì ngang
+     (bug 2026-08-05: tự kiểm tra ẩu tưởng đã đúng hàng ngang, thực ra vẫn xếp dọc). */
+  .rvw-btnrow3,.rvw-btnrow4{display:flex;flex-direction:row;flex-wrap:nowrap;gap:6px;}
+  .rvw-btnrow3 button,.rvw-btnrow4 button{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;
     background:#3a3a3a;border:none;border-radius:5px;color:#ddd;padding:8px 4px;cursor:pointer;}
-  .rvw-btnrow3 button:hover{background:#454749;}
-  .rvw-btnrow3 button.rvw-on{background:#0d99ff;color:#fff;}
-  .rvw-btnrow3 button svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;}
+  .rvw-btnrow3 button:hover,.rvw-btnrow4 button:hover{background:#454749;}
+  .rvw-btnrow3 button.rvw-on,.rvw-btnrow4 button.rvw-on{background:#0d99ff;color:#fff;}
+  .rvw-btnrow3 button svg,.rvw-btnrow4 button svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;}
   .rvw-hoverbox{position:fixed;z-index:99997;pointer-events:none;border:1px solid rgba(13,153,255,.55);}
   .rvw-guide{position:fixed;z-index:99998;background:#f24822;pointer-events:none;display:none;}
   .rvw-guide.rvw-gv{width:1px;}
@@ -291,7 +294,11 @@
     image: '<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.5" cy="6" r="1.2"/><path d="M2.5 12l3.5-4 3 3.5 2-2.5 2.5 3"/></svg>',
     alignLeft: '<svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h10"/></svg>',
     alignCenter: '<svg viewBox="0 0 16 16"><path d="M2 4h12M4 8h8M3 12h10"/></svg>',
-    alignRight: '<svg viewBox="0 0 16 16"><path d="M2 4h12M6 8h8M4 12h10"/></svg>'
+    alignRight: '<svg viewBox="0 0 16 16"><path d="M2 4h12M6 8h8M4 12h10"/></svg>',
+    flipH: '<svg viewBox="0 0 16 16"><path d="M8 1v14" stroke-dasharray="2 2"/><path d="M4.5 5 2 8l2.5 3M11.5 5 14 8l-2.5 3"/></svg>',
+    flipV: '<svg viewBox="0 0 16 16"><path d="M1 8h14" stroke-dasharray="2 2"/><path d="M5 4.5 8 2l3 2.5M5 11.5 8 14l3-2.5"/></svg>',
+    layerUp: '<svg viewBox="0 0 16 16"><rect x="4" y="6" width="8" height="8" rx="1"/><path d="M8 4V1M6 2.5 8 .5l2 2"/></svg>',
+    layerDown: '<svg viewBox="0 0 16 16"><rect x="4" y="2" width="8" height="8" rx="1"/><path d="M8 12v3M6 13.5 8 15.5l2-2"/></svg>'
   };
   // Cờ SVG (Windows không render emoji cờ)
   var FLAGS = {
@@ -321,6 +328,19 @@
     '<span class="rvw-zoom"><button id="rvw-zout">−</button><span class="rvw-zval" id="rvw-zval">100%</span>' +
     '<button id="rvw-zin">+</button><button id="rvw-zfit" title="Fit" style="width:auto;padding:0 8px;font-size:11px;">Fit</button></span>';
   document.body.appendChild(topbar);
+
+  /* Toast thay alert() gốc trình duyệt — alert chặn UI + không style được, phá vỡ dark UI
+     (audit 2026-08-05: heuristic #1 Visibility + #8 Aesthetic consistency) */
+  var toastEl = document.createElement('div');
+  toastEl.className = 'rvw-toast rvw';
+  document.body.appendChild(toastEl);
+  var toastTimer = null;
+  function showToast(msg, isErr) {
+    toastEl.textContent = msg;
+    toastEl.className = 'rvw-toast rvw rvw-show ' + (isErr ? 'rvw-err' : 'rvw-ok');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('rvw-show'); }, 3000);
+  }
 
   var panel = document.createElement('div');
   panel.className = 'rvw-panel rvw';
@@ -606,9 +626,11 @@
       '</div></div>' +
       '<div class="rvw-section"><div class="rvw-sectitle">' + T.secAppearance + '</div><div class="rvw-fields">' +
       '<div class="rvw-field rvw-wide"><label>' + T.op + '</label><input id="rvw-op" type="number" min="0" max="100" step="5" value="' + op + '"></div>' +
-      '<div class="rvw-field rvw-wide rvw-btnrow">' +
-      '<button id="rvw-fliph">' + T.flipH + '</button><button id="rvw-flipv">' + T.flipV + '</button>' +
-      '<button id="rvw-zup">' + T.zUp + '</button><button id="rvw-zdown">' + T.zDown + '</button></div>' +
+      '<div class="rvw-field rvw-wide rvw-btnrow4">' +
+      '<button id="rvw-fliph" title="' + T.flipH + '">' + ICONS.flipH + '</button>' +
+      '<button id="rvw-flipv" title="' + T.flipV + '">' + ICONS.flipV + '</button>' +
+      '<button id="rvw-zup" title="' + T.zUp + '">' + ICONS.layerUp + '</button>' +
+      '<button id="rvw-zdown" title="' + T.zDown + '">' + ICONS.layerDown + '</button></div>' +
       '</div></div>';
     if (isText(el)) {
       var fs = parseFloat(getComputedStyle(el).fontSize);
@@ -1321,8 +1343,8 @@
       saveBtn.onclick = function () {
         fetch('/__review__/save?name=' + encodeURIComponent(fileName), { method: 'POST', body: cleanHTML() })
           .then(function (r) { return r.json(); })
-          .then(function (res) { alert(res.ok ? T.savedSource + res.path : T.errSave + res.error); })
-          .catch(function (err) { alert(T.errServer + err); });
+          .then(function (res) { showToast(res.ok ? T.savedSource + res.path : T.errSave + res.error, !res.ok); })
+          .catch(function (err) { showToast(T.errServer + err, true); });
       };
       // Nút Xuất PNG — lưu source TRƯỚC rồi chụp từ source → PNG luôn khớp HTML
       var btn = document.createElement('button');
@@ -1338,10 +1360,10 @@
           method: 'POST', body: cleanHTML()
         }).then(function (r) { return r.json(); }).then(function (res) {
           btn.disabled = false; btn.innerHTML = ICONS.image + T.png;
-          alert(res.ok ? T.exported + res.path : T.errExport + res.error);
+          showToast(res.ok ? T.exported + res.path : T.errExport + res.error, !res.ok);
         }).catch(function (err) {
           btn.disabled = false; btn.innerHTML = ICONS.image + T.png;
-          alert(T.errServer + err);
+          showToast(T.errServer + err, true);
         });
       };
     }).catch(showNoServer);
