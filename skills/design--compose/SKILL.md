@@ -1,5 +1,5 @@
 ---
-name: design-compose
+name: nexus:compose
 category: design
 risk: safe
 source: internal
@@ -9,7 +9,7 @@ description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG tr
 
 # Design Compose — Ghép lớp thiết kế kiểu Designer
 
-Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh chụp, logo có sẵn) và ghép thành ảnh hoàn chỉnh. Không tự gen ảnh AI — dùng backend gen ảnh bất kỳ ở khâu chuẩn bị asset (xem workflow đi kèm). Có thể dùng lẻ hoặc được orchestrate bởi workflow `design-compose-pipeline`.
+Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh chụp, logo có sẵn) và ghép thành ảnh hoàn chỉnh. Không tự gen ảnh AI — việc đó thuộc `design--cover-image`. Có thể dùng lẻ hoặc được orchestrate bởi workflow `design-compose-pipeline`.
 
 ## Ba nguyên tắc cứng (không thương lượng)
 
@@ -51,13 +51,13 @@ Trước khi dựng khung, chốt **moodboard tinh thần** của thiết kế (
 **Tải font đã chọn về local** (script tự cảnh báo nếu font thiếu subset Vietnamese):
 
 ```bash
-python <path-to-skill>/scripts/fetch-fonts.py \
+python .agent/skills/design--compose/scripts/fetch-fonts.py \
   --family "Baloo 2:700,800" --family "Quicksand:500,700" \
   --out <output-dir>/fonts
 # → link <output-dir>/fonts/fonts.css vào design file
 ```
 
-**Màu theo ý nghĩa**: palette phải trả lời "màu này nói gì?" (tin cậy → xanh dương đậm; tươi non → xanh lá pastel; ấm áp → cam đất...). Tham khảo 4 preset trong [config/style-registry.json](config/style-registry.json) hoặc palette library bạn quen dùng — nhưng chọn có lý do, ghi lý do vào design file (comment đầu file).
+**Màu theo ý nghĩa**: palette phải trả lời "màu này nói gì?" (tin cậy → xanh dương đậm; tươi non → xanh lá pastel; ấm áp → cam đất...). Tham khảo 161 palettes trong `design--master`, 11 palettes trong `design--cover-image`, hoặc 4 preset của skill này — nhưng chọn có lý do, ghi lý do vào design file (comment đầu file).
 
 ## Bước 1 — Chuẩn bị workspace
 
@@ -82,15 +82,16 @@ python <path-to-skill>/scripts/fetch-fonts.py \
 5. Lớp 3: điền title (từ khóa nhấn → `<span class="highlight">`), subtitle, CTA, badge, logo. Tiếng Việt đủ dấu — đây là lý do lớp này là HTML.
 6. **QUY TẮC CHUẨN — mọi asset có alpha đều trim trước khi vào slot** (dù user đưa sẵn hay rmbg tách ra):
    ```bash
-   python <path-to-skill>/scripts/trim-alpha.py <asset>.png   # → <asset>-trim.png, giữ file gốc
+   python .agent/skills/design--compose/scripts/trim-alpha.py <asset>.png   # → <asset>-trim.png, giữ file gốc
    ```
    Lý do: asset tách nền thường có padding trong suốt lớn (case iPhone: vật thể chỉ 312×548 trong khung 680×680) → `object-fit: contain` co nhỏ vật thể và tạo khe hở với bóng/floor dù slot neo đáy.
 
    **Asset có sẵn (ảnh sản phẩm đã tách nền)** — kiểm tra alpha thật bằng Pillow (4 góc alpha=0) rồi trim + dùng thẳng, bỏ qua rmbg. Hai việc PHẢI tự dựng vì ảnh tách nền không mang theo (kiểm chứng case iPhone 2026-08-05):
    - **Bóng/phản chiếu**: `drop-shadow` theo hướng sáng của nền; nền tối premium → thêm phản chiếu sàn: slot thứ 2 cùng ảnh, **PHẢI cùng kích thước slot gốc** (slot thấp hơn sẽ bị `object-fit: contain` co nhỏ bóng — feedback case iPhone), ảnh `object-position: bottom` + `scaleY(-1)`, cắt phần hiện bằng `mask-image` fade + opacity ~0.16. ⚠️ mask áp TRƯỚC transform nên bị lật theo — muốn fade xuống dưới (visual) thì gradient phải "to top".
    - **Hòa ánh sáng**: ảnh studio thường lệch tông với nền — grade per-slot (`grade-warm/cool`) cho khớp.
-7. Element cần tách nền → `rmbg <img> -m briaai -o <out>.png` (cài: `npm i -g rmbg-cli`), rồi hậu xử lý (kiểm chứng 2026-08-05):
-   - **Lọc nhiễu alpha (bắt buộc)**: briaai để lại mảng alpha loang lổ khắp ảnh — giữ đúng khối liền mạch lớn nhất (`scipy.ndimage.label` trên alpha > 100, dilate 3px giữ mép mềm), các mảng rời rạc set alpha = 0.
+7. Element cần tách nền → `rmbg <img> -m briaai -o <out>.png` (skill `auto--media`), rồi hậu xử lý (kiểm chứng 2026-08-05):
+   - **Chủ thể có tông GẦN GIỐNG màu nền** (vd vật xám trên nền xám) → briaai có thể fail nặng: ra alpha loang lổ khắp khung hình (kiểm chứng: ~19% pixel alpha lửng lơ, không phải mép mềm mà là noise thật). Đổi sang `rmbg <img> -m modnet -o <out>.png` — modnet xử lý case tương phản thấp tốt hơn hẳn (còn ~8-10% alpha lửng, đúng nghĩa mép mềm tự nhiên). Đọc lại ảnh bằng vision sau rmbg để phát hiện case này trước khi tốn công lọc nhiễu.
+   - **Lọc nhiễu alpha (bắt buộc)**: briaai để lại mảng alpha loang lổ khắp ảnh — chạy `python .agent/skills/design--compose/scripts/filter-alpha-noise.py <asset>.png` (giữ khối liền mạch lớn nhất qua `scipy.ndimage.label`, dilate 3px giữ mép mềm, mảng rời rạc set alpha = 0).
    - **Trim sát vật thể (bắt buộc — quy tắc chuẩn mục 6)**: chạy `trim-alpha.py` sau khi lọc nhiễu; nhờ slot-based nên trim không ảnh hưởng tọa độ overlay, nhưng quyết định vật thể fill khít slot và bóng/floor sát chân.
    - Prompt element: nền PHẲNG đồng nhất, tông NGƯỢC với palette chủ thể (chủ thể sáng/trắng → xám trung tính "#B0B0B0"–"#D0D0D0"; chủ thể tối → xám sáng "#EDEDED"; mặc định "#EDEDED"; CẤM nền cùng tông chủ thể, CẤM chroma xanh lá/magenta — gen model bleed màu vào mép lông/tóc), "soft contact shadow only". Lý do: rmbg là segmentation ngữ nghĩa chứ không phải chroma-key — cần tương phản chủ thể–nền, không cần màu key. Codex image_gen KHÔNG xuất alpha trực tiếp.
 
@@ -117,7 +118,7 @@ CSS filter/blend/overlay = adjustment layer Photoshop — đổi mood, đồng b
 (Claude vẫn được chụp bản tạm để tự nghiệm thu bằng vision — đó là việc nội bộ, không phải deliverable.)
 
 ```bash
-python <path-to-skill>/scripts/compose-screenshot.py \
+python .agent/skills/design--compose/scripts/compose-screenshot.py \
   --html <output-dir>/design-{slug}.html --aspect 1:1 \
   --output <output-dir>/{slug}-1x1.png
 ```
@@ -130,12 +131,12 @@ python <path-to-skill>/scripts/compose-screenshot.py \
 Output không phải ảnh chết — design file là bề mặt làm việc. **Ngay khi dựng xong design HTML (cuối Bước 2), mở preview luôn — đừng để user phải tự kiếm file:**
 
 ```bash
-python <path-to-skill>/scripts/open-review.py <output-dir>/design-{slug}.html
+python .agent/skills/design--compose/scripts/open-review.py <output-dir>/design-{slug}.html
 ```
 
-Một lệnh lo trọn: tái dùng review-server đang serve đúng thư mục (hoặc tự khởi động nền ở port trống), chờ sẵn sàng, mở browser mặc định vào `#review`.
+Một lệnh lo trọn: tái dùng review-server đang serve đúng thư mục (hoặc tự khởi động nền ở port trống), chờ sẵn sàng, mở browser vào `#review`. Server cho phép nút Lưu/Xuất PNG hoạt động 0 token.
 
-(Fallback không server: mở `file:///<đường-dẫn>/design-{slug}.html#review` — nút Xuất PNG tự ẩn, còn lại hoạt động đủ. Đừng đưa link dạng text — IDE/chat encode `?`/`#` gây ERR_FILE_NOT_FOUND, luôn mở bằng lệnh.)
+(Fallback không server: mở `file:///<đường-dẫn>/design-{slug}.html#review` — nút Lưu/Xuất PNG tự ẩn, còn lại hoạt động đủ. Đừng đưa link dạng text — IDE/chat encode `?`/`#` gây ERR_FILE_NOT_FOUND, luôn mở bằng lệnh.)
 
 Overlay ([scripts/review-overlay.js](scripts/review-overlay.js), template đã nhúng sẵn, chỉ kích hoạt khi có `#review`/`?review`) là editor chrome kiểu Figma — dark canvas, icon SVG, không emoji:
 - **Layers panel (trái)**: cây phân lớp Nền → Art → Adjustment → Nội dung, expand/collapse group, click chọn đúng element trong nhóm chồng nhau, toggle ẩn/hiện từng lớp để soi; sync 2 chiều với selection trên canvas
@@ -156,13 +157,15 @@ Nhận feedback JSON từ user → áp `texts` / `moves` / `pins` vào source HT
 
 ## Bước 5 — Wrap-up phiên (knowledge)
 
-Cuối mỗi phiên thiết kế, agent PHẢI chốt sổ kinh nghiệm vào `knowledge/` (cạnh thư mục skills):
+Cuối mỗi phiên thiết kế, chốt sổ kinh nghiệm theo hệ knowledge của workspace Nexus:
 
-1. Chạy `python <path-to-skill>/scripts/knowledge-manager.py --new-session <slug>` rồi điền 4 mục (đã làm, feedback, bug, bài học).
-2. Mẹo đã kiểm chứng ≥ 2 lần → thăng cấp thành `knowledge/patterns/<tên>.md`.
-3. Kinh nghiệm prompt gen ảnh → ghi vào `knowledge/prompts/<backend>.md`.
-4. Quy tắc sống còn → đề xuất user cho ghi thẳng vào SKILL.md này.
-5. Chốt: `knowledge-manager.py --audit --index` — audit phải sạch trước khi kết thúc phiên.
+1. Session note → `knowledge/notes/` (theo quy trình wrap-up chung của workspace).
+2. Kỹ thuật kiểm chứng ≥ 2 lần → `knowledge/patterns/` (check trùng trước, update thay vì tạo mới).
+3. Kinh nghiệm prompt gen ảnh → cập nhật pattern `layered-ai-asset-html-compose-pipeline` hoặc pattern riêng theo backend.
+4. Quy tắc sống còn → ghi thẳng vào bước tương ứng của SKILL.md này, kèm ngày kiểm chứng.
+5. Rebuild index: `python core/knowledge_manager.py --rebuild`.
+
+(Bản standalone/public của skill dùng `scripts/knowledge-manager.py` với thư mục `knowledge/` cạnh skill — cùng triết lý, khác hạ tầng.)
 
 ## Fonts
 
@@ -172,16 +175,5 @@ Bộ cache khởi điểm tại [assets/fonts/](assets/fonts/) (Be Vietnam Pro +
 
 ## Giới hạn
 
-- Không thay thế cho ảnh AI nguyên khối nghệ thuật — cần chất liệu painterly/hand-drawn toàn khung thì gen AI nguyên khối trực tiếp.
+- Không thay thế cho ảnh AI nguyên khối nghệ thuật — cần chất liệu painterly/hand-drawn toàn khung thì dùng `design--cover-image` thuần.
 - Sửa cấu trúc ảnh (pose, thêm bớt vật thể) → regen hoặc inpainting backend, adjustment layer không làm được.
-
-## Mở rộng skill này (dành cho người dùng)
-
-SKILL.md này là **sổ tay sống** — cách đúng để dùng nó là ghi thêm kinh nghiệm của chính bạn:
-
-- Bài học theo phiên → `knowledge/sessions/`; kỹ thuật tái dùng → `knowledge/patterns/`; prompt → `knowledge/prompts/` (xem [knowledge/README.md](../../knowledge/README.md)).
-- Quy tắc sống còn đã kiểm chứng → ghi thẳng vào bước tương ứng của file này, kèm ngày (như các mục "kiểm chứng 2026-08-05" — đều từ lỗi thật).
-- Style mới → thêm entry vào [config/style-registry.json](config/style-registry.json) với palette + art_direction block.
-- Kinh nghiệm prompt cho backend gen ảnh của bạn → tự ghi chú và bổ sung vào Bước 0.5 / phần asset.
-
-AI agent đọc file này mỗi lần chạy — mọi dòng bạn thêm là một lần dạy nó vĩnh viễn.
