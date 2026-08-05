@@ -163,3 +163,13 @@ Bộ cache khởi điểm tại [assets/fonts/](assets/fonts/) (Be Vietnam Pro +
 
 - Không thay thế cho ảnh AI nguyên khối nghệ thuật — cần chất liệu painterly/hand-drawn toàn khung thì gen AI nguyên khối trực tiếp.
 - Sửa cấu trúc ảnh (pose, thêm bớt vật thể) → regen hoặc inpainting backend, adjustment layer không làm được.
+
+## Mở rộng skill này (dành cho người dùng)
+
+SKILL.md này là **sổ tay sống** — cách đúng để dùng nó là ghi thêm kinh nghiệm của chính bạn:
+
+- Gặp bài học mới trong lúc làm → ghi thẳng vào bước tương ứng, kèm ngày (như các mục "kiểm chứng 2026-08-05" có sẵn — đều từ lỗi thật).
+- Style mới → thêm entry vào [config/style-registry.json](config/style-registry.json) với palette + art_direction block.
+- Kinh nghiệm prompt cho backend gen ảnh của bạn → tự ghi chú và bổ sung vào Bước 0.5 / phần asset.
+
+AI agent đọc file này mỗi lần chạy — mọi dòng bạn thêm là một lần dạy nó vĩnh viễn.

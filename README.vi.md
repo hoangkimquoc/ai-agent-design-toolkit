@@ -85,6 +85,14 @@ Nếu bộ công cụ này giúp bạn tiết kiệm thời gian, có thể mờ
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-m%E1%BB%9Di%20c%C3%A0%20ph%C3%AA-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/hoangkimquoc)
 
+## Biến nó thành của bạn
+
+Bộ công cụ chỉ đóng gói các quy tắc lõi — nó được thiết kế để lớn lên theo quá trình dùng. Bản gốc được xây qua hàng chục vòng feedback người thật, và trải nghiệm của bạn sẽ khác:
+
+- **Thêm style riêng** vào `config/style-registry.json` (palette + khối `art_direction` cho prompt AI)
+- **Ghi bài học mới thẳng vào `SKILL.md`** — nó là sổ tay sống cho AI agent của bạn, không phải spec đóng băng. Mọi ghi chú cảnh báo trong đó đều đến từ một lỗi thật bị bắt khi review.
+- **Prompt-craft nâng cao** cho gen ảnh AI chủ đích không đóng gói — mỗi backend một tính nết. Hãy giữ sổ prompt riêng và dạy lại agent của bạn theo đúng cách đó.
+
 ## License
 
 Code: [MIT](LICENSE). Fonts đi kèm (Be Vietnam Pro, Baloo 2): [SIL Open Font License 1.1](skills/design--compose/assets/fonts/OFL.txt).

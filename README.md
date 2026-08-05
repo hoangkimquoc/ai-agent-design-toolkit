@@ -81,6 +81,14 @@ UI auto-detects your browser language (Vietnamese/English) — toggle anytime wi
 4. **Shadows and reflections are built, not painted**: CSS drop-shadow + flipped-and-masked reflection slots.
 5. **Fonts have personality**: pick per design mood, fetch Vietnamese-safe subsets locally (`fetch-fonts.py` warns when a font lacks your script).
 
+## Make it yours
+
+This toolkit ships with the core rules — but it is designed to grow with use. It was built through dozens of real human-feedback loops, and yours will differ:
+
+- **Add your own styles** to `config/style-registry.json` (a palette + an `art_direction` prompt block per style)
+- **Append lessons to `SKILL.md`** as you hit them — it is a living handbook for your AI agent, not a frozen spec. Every warning note in it came from a real mistake caught in review.
+- **Advanced prompt-craft** for AI image generation is intentionally not bundled — every backend behaves differently. Keep your own prompt notes and teach them to your agent the same way.
+
 ## Roadmap
 
 - English translation of `SKILL.md` (agent instructions currently in Vietnamese — AI agents follow them regardless of your conversation language)
