@@ -45,6 +45,19 @@ knowledge/                            # sessions/ · patterns/ · prompts/ — e
 - Python 3.10+ — scripts use stdlib only, except `trim-alpha.py` (`pip install pillow`)
 - Optional: `npm i -g rmbg-cli` (AI background removal), an image-gen backend (e.g. Codex CLI) for AI layers
 
+## Using an image-gen backend (optional)
+
+The toolkit never calls a specific generator — bring your own. Three common paths:
+
+1. **Your agent is Codex CLI** — it has a native `image_gen` tool; just ask it to render your prompt file to a PNG at the right aspect.
+2. **Your agent is Claude Code (or other) + Codex CLI installed** (`codex` >= 0.130, logged in):
+   ```bash
+   codex exec "Read prompts/01-bg.md, generate an image with the image_gen tool at 9:16 aspect, save the PNG to assets/bg.png"
+   ```
+3. **Any other generator** (Imagen, DALL·E, Midjourney...) — generate anywhere, drop the PNG into your design folder. The skill only needs image files.
+
+Prompt rules that matter regardless of backend are in `knowledge/prompts/`.
+
 ## Install
 
 1. Copy `skills/design--compose/` into your agent workspace's skills directory (e.g. `.claude/skills/`).

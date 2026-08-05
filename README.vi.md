@@ -45,6 +45,19 @@ knowledge/                            # sessions/ · patterns/ · prompts/ — e
 - Python 3.10+ — script dùng thư viện chuẩn, riêng `trim-alpha.py` cần `pip install pillow`
 - Tùy chọn: `npm i -g rmbg-cli` (tách nền AI), backend gen ảnh (vd Codex CLI)
 
+## Nối backend gen ảnh (tùy chọn)
+
+Toolkit không gọi cứng generator nào — bạn tự mang backend. Ba đường phổ biến:
+
+1. **Agent của bạn là Codex CLI** — nó có tool `image_gen` native; chỉ cần yêu cầu render prompt file ra PNG đúng tỉ lệ.
+2. **Agent là Claude Code (hoặc khác) + đã cài Codex CLI** (`codex` >= 0.130, đã login):
+   ```bash
+   codex exec "Doc prompts/01-bg.md, gen anh bang tool image_gen ti le 9:16, luu PNG vao assets/bg.png"
+   ```
+3. **Generator bất kỳ khác** (Imagen, DALL·E, Midjourney...) — gen ở đâu cũng được, thả file PNG vào thư mục design. Skill chỉ cần file ảnh.
+
+Quy tắc prompt quan trọng (mọi backend) nằm ở `knowledge/prompts/`.
+
 ## Cài đặt
 
 1. Copy `skills/design--compose/` vào thư mục skills của workspace (vd `.claude/skills/`).
