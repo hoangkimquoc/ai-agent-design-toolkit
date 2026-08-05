@@ -657,7 +657,25 @@
     var s = getState(el);
     if (el.dataset.rvwBase === undefined) {
       var cs = getComputedStyle(el);
-      el.dataset.rvwBase = el.style.transform || (cs.transform !== 'none' ? cs.transform : '');
+      var base = el.style.transform || (cs.transform !== 'none' ? cs.transform : '');
+      // getComputedStyle luôn resolve transform về matrix() — translateX(-50%) canh giữa
+      // (title-group, qr-card...) bị đóng băng thành px TĨNH trong tx/ty. Nếu giữ nguyên,
+      // mọi lần xoay/scale sau đó compose lên px tĩnh này → lệch vị trí khi kích thước đổi
+      // (bug 2026-08-05: "scale đường chéo không work"). Tách tx/ty ra, dồn vào left/top,
+      // base chỉ giữ phần xoay/scale (matrix a,b,c,d) — tx/ty luôn = 0.
+      var mm = /matrix\(([^)]+)\)/.exec(base);
+      if (mm) {
+        var p = mm[1].split(',').map(function (n) { return parseFloat(n); });
+        var tx = p[4] || 0, ty = p[5] || 0;
+        if (tx || ty) {
+          ensurePositioned(el);
+          var csL = getComputedStyle(el);
+          el.style.left = ((parseFloat(csL.left) || 0) + tx).toFixed(1) + 'px';
+          el.style.top = ((parseFloat(csL.top) || 0) + ty).toFixed(1) + 'px';
+        }
+        base = 'matrix(' + p[0] + ',' + p[1] + ',' + p[2] + ',' + p[3] + ',0,0)';
+      }
+      el.dataset.rvwBase = base;
     }
     var t = el.dataset.rvwBase;
     if (s.rot) t += ' rotate(' + s.rot + 'deg)';
@@ -821,8 +839,13 @@
     }
     if (resizing) {
       var dz2 = zoom || 1;
-      var nw = Math.max(12, resizing.w + (e.clientX - resizing.sx) / dz2);
-      resizing.el.style.width = nw.toFixed(1) + 'px';
+      var rdx = (e.clientX - resizing.sx) / dz2;
+      var rdy = (e.clientY - resizing.sy) / dz2;
+      var diag0 = Math.sqrt(resizing.w * resizing.w + resizing.h * resizing.h) || 1;
+      var delta = (rdx + rdy) / Math.SQRT2; // chiếu delta chuột lên đường chéo handle
+      var scale = Math.max(0.05, (diag0 + delta) / diag0);
+      resizing.el.style.width = Math.max(12, resizing.w * scale).toFixed(1) + 'px';
+      resizing.el.style.height = Math.max(12, resizing.h * scale).toFixed(1) + 'px';
       refreshBoxes();
     }
     if (rotating) {
@@ -847,7 +870,10 @@
     if (e.target.classList.contains('se')) {
       e.preventDefault();
       pushUndo(selected);
-      resizing = { el: selected, sx: e.clientX, w: selected.getBoundingClientRect().width / (zoom || 1) };
+      ensurePositioned(selected);
+      var rse = selected.getBoundingClientRect();
+      var dzse = zoom || 1;
+      resizing = { el: selected, sx: e.clientX, sy: e.clientY, w: rse.width / dzse, h: rse.height / dzse };
       return;
     }
     if (mode !== 'select') return;
