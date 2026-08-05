@@ -16,6 +16,7 @@ Usage:
 """
 import argparse
 import datetime
+import locale
 import os
 import re
 import sys
@@ -28,20 +29,55 @@ if sys.platform.startswith("win"):
 
 SESSION_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$")
 
-SESSION_TEMPLATE = """# Session {date} — {slug}
+# i18n: --lang > env KNOWLEDGE_LANG > locale hệ thống
+MSG = {
+    "vi": {
+        "summary": "knowledge/: {s} sessions · {p} patterns · {pr} prompt notes",
+        "last": "Phiên gần nhất: {f} ({d} ngày trước){flag}",
+        "stale": "  ⚠️ đã lâu chưa wrap-up phiên nào!",
+        "no_session": "⚠️ Chưa có session note nào — sau phiên làm việc chạy: --new-session <slug>",
+        "created": "Đã tạo: {p}\nĐiền 4 mục rồi chạy --index để cập nhật tổng hợp.",
+        "exists": "Đã tồn tại: {p}",
+        "issues": "{n} vấn đề:",
+        "bad_name": "sessions/{f}: sai naming (chuẩn: YYYY-MM-DD-slug.md)",
+        "no_lesson": "sessions/{f}: thiếu mục 'Bài học'",
+        "no_verify": "patterns/{f}: chưa ghi mốc kiểm chứng (pattern phải được kiểm chứng ≥2 lần)",
+        "no_prompts": "prompts/: chưa có sổ prompt cho backend nào",
+        "clean": "Audit sạch — knowledge đang được nuôi đúng cách.",
+        "indexed": "Đã sinh: {p}",
+        "index_note": "_Sinh tự động {d} bởi knowledge-manager.py — đừng sửa tay._",
+        "not_knowledge": "Lỗi: {p} không phải thư mục knowledge (thiếu sessions/).",
+        "not_found": "Lỗi: không tìm thấy knowledge/sessions/ từ thư mục hiện tại — dùng --dir <path>.",
+        "template": "# Session {date} — {slug}\n\n## Đã làm\n-\n\n## Feedback người thật → thay đổi\n-\n\n## Bug / bất ngờ đáng nhớ\n-\n\n## Bài học\n- <bài học> — (kiểm chứng ≥2 lần → thăng cấp knowledge/patterns/; quy tắc sống còn → đề xuất ghi vào SKILL.md)\n",
+    },
+    "en": {
+        "summary": "knowledge/: {s} sessions · {p} patterns · {pr} prompt notes",
+        "last": "Last session: {f} ({d} days ago){flag}",
+        "stale": "  ⚠️ no session wrap-up for a while!",
+        "no_session": "⚠️ No session notes yet — after a working session run: --new-session <slug>",
+        "created": "Created: {p}\nFill in the 4 sections, then run --index to refresh the summary.",
+        "exists": "Already exists: {p}",
+        "issues": "{n} issue(s):",
+        "bad_name": "sessions/{f}: bad naming (expected: YYYY-MM-DD-slug.md)",
+        "no_lesson": "sessions/{f}: missing a 'Lesson' section",
+        "no_verify": "patterns/{f}: no verification note (a pattern must be verified at least twice)",
+        "no_prompts": "prompts/: no per-backend prompt notes yet",
+        "clean": "Audit clean — the knowledge base is being fed properly.",
+        "indexed": "Generated: {p}",
+        "index_note": "_Auto-generated {d} by knowledge-manager.py — do not edit by hand._",
+        "not_knowledge": "Error: {p} is not a knowledge folder (missing sessions/).",
+        "not_found": "Error: no knowledge/sessions/ found upward from here — use --dir <path>.",
+        "template": "# Session {date} — {slug}\n\n## What was done\n-\n\n## Human feedback → changes\n-\n\n## Bugs / surprises worth remembering\n-\n\n## Lessons\n- <lesson> — (verified twice → promote to knowledge/patterns/; hard rule → propose adding to SKILL.md)\n",
+    },
+}
 
-## Đã làm
--
 
-## Feedback người thật → thay đổi
--
+def pick_lang(flag: str | None) -> str:
+    cand = flag or os.environ.get("KNOWLEDGE_LANG") or (locale.getdefaultlocale()[0] or "")
+    return "vi" if str(cand).lower().startswith("vi") else "en"
 
-## Bug / bất ngờ đáng nhớ
--
 
-## Bài học
-- <bài học> — (nếu đã kiểm chứng ≥2 lần → thăng cấp knowledge/patterns/; quy tắc sống còn → đề xuất ghi vào SKILL.md)
-"""
+T = MSG["en"]  # gán lại trong __main__ sau khi parse args
 
 
 def find_knowledge(explicit: str | None) -> str:
@@ -49,7 +85,7 @@ def find_knowledge(explicit: str | None) -> str:
         k = os.path.abspath(explicit)
         if os.path.isdir(os.path.join(k, "sessions")):
             return k
-        sys.exit(f"Lỗi: {k} không phải thư mục knowledge (thiếu sessions/).")
+        sys.exit(T["not_knowledge"].format(p=k))
     cur = os.getcwd()
     for _ in range(8):
         cand = os.path.join(cur, "knowledge")
@@ -59,7 +95,7 @@ def find_knowledge(explicit: str | None) -> str:
         if parent == cur:
             break
         cur = parent
-    sys.exit("Lỗi: không tìm thấy knowledge/sessions/ từ thư mục hiện tại — dùng --dir <path>.")
+    sys.exit(T["not_found"])
 
 
 def list_md(folder: str, skip_readme: bool = True) -> list[str]:
@@ -82,17 +118,17 @@ def cmd_status(k: str) -> None:
     sessions = list_md(os.path.join(k, "sessions"))
     patterns = list_md(os.path.join(k, "patterns"))
     prompts = list_md(os.path.join(k, "prompts"))
-    print(f"knowledge/: {len(sessions)} sessions · {len(patterns)} patterns · {len(prompts)} prompt notes")
+    print(T["summary"].format(s=len(sessions), p=len(patterns), pr=len(prompts)))
     if sessions:
         last = sessions[-1]
         m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", last)
         if m:
             last_date = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
             days = (datetime.date.today() - last_date).days
-            flag = "" if days <= 7 else "  ⚠️ đã lâu chưa wrap-up phiên nào!"
-            print(f"Phiên gần nhất: {last} ({days} ngày trước){flag}")
+            flag = "" if days <= 7 else T["stale"]
+            print(T["last"].format(f=last, d=days, flag=flag))
     else:
-        print("⚠️ Chưa có session note nào — sau phiên làm việc chạy: --new-session <slug>")
+        print(T["no_session"])
 
 
 def cmd_new_session(k: str, slug: str) -> None:
@@ -100,10 +136,10 @@ def cmd_new_session(k: str, slug: str) -> None:
     date = datetime.date.today().isoformat()
     path = os.path.join(k, "sessions", f"{date}-{slug}.md")
     if os.path.exists(path):
-        sys.exit(f"Đã tồn tại: {path}")
+        sys.exit(T["exists"].format(p=path))
     with open(path, "w", encoding="utf-8") as f:
-        f.write(SESSION_TEMPLATE.format(date=date, slug=slug))
-    print(f"Đã tạo: {path}\nĐiền 4 mục rồi chạy --index để cập nhật tổng hợp.")
+        f.write(T["template"].format(date=date, slug=slug))
+    print(T["created"].format(p=path))
 
 
 def cmd_audit(k: str) -> bool:
@@ -111,28 +147,28 @@ def cmd_audit(k: str) -> bool:
     sdir = os.path.join(k, "sessions")
     for f in list_md(sdir):
         if not SESSION_RE.match(f):
-            issues.append(f"sessions/{f}: sai naming (chuẩn: YYYY-MM-DD-slug.md)")
+            issues.append(T["bad_name"].format(f=f))
         else:
             body = open(os.path.join(sdir, f), encoding="utf-8").read()
             if "Bài học" not in body and "Lesson" not in body:
-                issues.append(f"sessions/{f}: thiếu mục 'Bài học'")
+                issues.append(T["no_lesson"].format(f=f))
     for f in list_md(os.path.join(k, "patterns")):
         body = open(os.path.join(k, "patterns", f), encoding="utf-8").read()
         if "kiểm chứng" not in body and "verified" not in body.lower():
-            issues.append(f"patterns/{f}: chưa ghi mốc kiểm chứng (pattern phải được kiểm chứng ≥2 lần)")
+            issues.append(T["no_verify"].format(f=f))
     if not list_md(os.path.join(k, "prompts")):
-        issues.append("prompts/: chưa có sổ prompt cho backend nào")
+        issues.append(T["no_prompts"])
     if issues:
-        print(f"{len(issues)} vấn đề:")
+        print(T["issues"].format(n=len(issues)))
         for i in issues:
             print("  -", i)
         return False
-    print("Audit sạch — knowledge đang được nuôi đúng cách.")
+    print(T["clean"])
     return True
 
 
 def cmd_index(k: str) -> None:
-    lines = ["# Knowledge Index", "", f"_Sinh tự động {datetime.date.today().isoformat()} bởi knowledge-manager.py — đừng sửa tay._", ""]
+    lines = ["# Knowledge Index", "", T["index_note"].format(d=datetime.date.today().isoformat()), ""]
     for sub, title in [("sessions", "Sessions"), ("patterns", "Patterns"), ("prompts", "Prompts")]:
         files = list_md(os.path.join(k, sub))
         lines.append(f"## {title} ({len(files)})")
@@ -142,18 +178,20 @@ def cmd_index(k: str) -> None:
         lines.append("")
     with open(os.path.join(k, "INDEX.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"Đã sinh: {os.path.join(k, 'INDEX.md')}")
+    print(T["indexed"].format(p=os.path.join(k, "INDEX.md")))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Quản lý knowledge/ của design-compose toolkit")
     parser.add_argument("--dir", help="Đường dẫn thư mục knowledge (mặc định: tự tìm ngược)")
+    parser.add_argument("--lang", choices=["vi", "en"], help="Ngôn ngữ output (mặc định: theo locale / env KNOWLEDGE_LANG)")
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--new-session", metavar="SLUG")
     parser.add_argument("--audit", action="store_true")
     parser.add_argument("--index", action="store_true")
     args = parser.parse_args()
 
+    T = MSG[pick_lang(args.lang)]
     k = find_knowledge(args.dir)
     if args.new_session:
         cmd_new_session(k, args.new_session)
