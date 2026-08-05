@@ -1,5 +1,5 @@
 ---
-description: Orchestrator thiết kế ảnh truyền thông 3 lớp — route theo user story, gọi design--cover-image (gen AI) + auto--media (tách nền) + design--compose (ghép HTML, xuất PNG)
+description: Orchestrator thiết kế ảnh truyền thông 3 lớp — route theo user story, gen AI (backend bất kỳ) + tách nền (rmbg-cli) + design--compose (ghép HTML, xuất PNG)
 ---
 
 # Design Social / Web — Orchestrator
@@ -30,18 +30,18 @@ Chỉ skip hỏi khi user đã cung cấp đủ hoặc bảo "tự quyết/làm 
 | Đã có đủ asset (nền + element + logo) | C → D |
 | Chỉ đổi text/CTA trên thiết kế đã làm | Mở lại `design-{slug}.html` cũ → sửa lớp 3 → D (không tốn lượt gen AI) |
 | Bộ đa kênh cùng nội dung | A → B → C một lần, D lặp theo từng aspect |
-| Chỉ cần ảnh minh họa nghệ thuật nguyên khối, không chữ HTML | Chỉ A (`design--cover-image` thuần, dừng ở đó) |
+| Chỉ cần ảnh minh họa nghệ thuật nguyên khối, không chữ HTML | Chỉ A (gen AI thuần, dừng ở đó) |
 
 ## Các bước pipeline
 
-### A — Gen nền (skill `design--cover-image`)
+### A — Gen nền (backend gen ảnh bất kỳ: Codex CLI, Imagen, DALL·E...)
 - Bắt buộc `--text none` (ảnh không chứa chữ AI), `--aspect` khớp tỉ lệ đã chốt.
 - Chèn **art_direction block** của style đã chọn (từ `style-registry.json`) vào prompt để nền và element đồng bộ chất liệu.
 - Lưu: `<output-dir>/assets/bg-{slug}.png`.
 
-### B — Gen element + tách nền (skill `design--cover-image` + `auto--media`)
+### B — Gen element + tách nền (backend gen ảnh + rmbg-cli)
 - Chỉ chạy khi thiết kế cần element rời (linh vật, sản phẩm, icon). Prompt: chủ thể đơn lẻ, "isolated on solid plain background", cùng art_direction block.
-- Tách nền bằng RMBG (`auto--media`) → PNG trong suốt `assets/element-{slug}.png`.
+- Tách nền bằng `rmbg-cli` (`npm i -g rmbg-cli`) → PNG trong suốt `assets/element-{slug}.png`.
 - Cạnh mềm (tóc/khói/glow) tách xấu → gen lại với nền phẳng hơn, tối đa 2 vòng rồi hỏi user.
 
 ### C — Ghép lớp (skill `design--compose`)

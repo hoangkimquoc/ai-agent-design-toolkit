@@ -1,5 +1,5 @@
 ---
-name: nexus:compose
+name: design-compose
 category: design
 risk: safe
 source: internal
@@ -9,7 +9,7 @@ description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG tr
 
 # Design Compose — Ghép lớp thiết kế kiểu Designer
 
-Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh chụp, logo có sẵn) và ghép thành ảnh hoàn chỉnh. Không tự gen ảnh AI — việc đó thuộc `design--cover-image`. Có thể dùng lẻ hoặc được orchestrate bởi workflow `design-compose-pipeline`.
+Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh chụp, logo có sẵn) và ghép thành ảnh hoàn chỉnh. Không tự gen ảnh AI — dùng backend gen ảnh bất kỳ ở khâu chuẩn bị asset (xem workflow đi kèm). Có thể dùng lẻ hoặc được orchestrate bởi workflow `design-compose-pipeline`.
 
 ## Ba nguyên tắc cứng (không thương lượng)
 
@@ -57,7 +57,7 @@ python <path-to-skill>/scripts/fetch-fonts.py \
 # → link <output-dir>/fonts/fonts.css vào design file
 ```
 
-**Màu theo ý nghĩa**: palette phải trả lời "màu này nói gì?" (tin cậy → xanh dương đậm; tươi non → xanh lá pastel; ấm áp → cam đất...). Tham khảo 161 palettes trong `design--master`, 11 palettes trong `design--cover-image`, hoặc 4 preset của skill này — nhưng chọn có lý do, ghi lý do vào design file (comment đầu file).
+**Màu theo ý nghĩa**: palette phải trả lời "màu này nói gì?" (tin cậy → xanh dương đậm; tươi non → xanh lá pastel; ấm áp → cam đất...). Tham khảo 4 preset trong [config/style-registry.json](config/style-registry.json) hoặc palette library bạn quen dùng — nhưng chọn có lý do, ghi lý do vào design file (comment đầu file).
 
 ## Bước 1 — Chuẩn bị workspace
 
@@ -89,7 +89,7 @@ python <path-to-skill>/scripts/fetch-fonts.py \
    **Asset có sẵn (ảnh sản phẩm đã tách nền)** — kiểm tra alpha thật bằng Pillow (4 góc alpha=0) rồi trim + dùng thẳng, bỏ qua rmbg. Hai việc PHẢI tự dựng vì ảnh tách nền không mang theo (kiểm chứng case iPhone 2026-08-05):
    - **Bóng/phản chiếu**: `drop-shadow` theo hướng sáng của nền; nền tối premium → thêm phản chiếu sàn: slot thứ 2 cùng ảnh, **PHẢI cùng kích thước slot gốc** (slot thấp hơn sẽ bị `object-fit: contain` co nhỏ bóng — feedback case iPhone), ảnh `object-position: bottom` + `scaleY(-1)`, cắt phần hiện bằng `mask-image` fade + opacity ~0.16. ⚠️ mask áp TRƯỚC transform nên bị lật theo — muốn fade xuống dưới (visual) thì gradient phải "to top".
    - **Hòa ánh sáng**: ảnh studio thường lệch tông với nền — grade per-slot (`grade-warm/cool`) cho khớp.
-7. Element cần tách nền → `rmbg <img> -m briaai -o <out>.png` (skill `auto--media`), rồi hậu xử lý (kiểm chứng 2026-08-05):
+7. Element cần tách nền → `rmbg <img> -m briaai -o <out>.png` (cài: `npm i -g rmbg-cli`), rồi hậu xử lý (kiểm chứng 2026-08-05):
    - **Lọc nhiễu alpha (bắt buộc)**: briaai để lại mảng alpha loang lổ khắp ảnh — giữ đúng khối liền mạch lớn nhất (`scipy.ndimage.label` trên alpha > 100, dilate 3px giữ mép mềm), các mảng rời rạc set alpha = 0.
    - **Trim sát vật thể (bắt buộc — quy tắc chuẩn mục 6)**: chạy `trim-alpha.py` sau khi lọc nhiễu; nhờ slot-based nên trim không ảnh hưởng tọa độ overlay, nhưng quyết định vật thể fill khít slot và bóng/floor sát chân.
    - Prompt element ghi rõ "isolated on flat plain solid light gray (#EDEDED) background, soft contact shadow only" — Codex image_gen KHÔNG xuất alpha trực tiếp.
@@ -161,5 +161,5 @@ Bộ cache khởi điểm tại [assets/fonts/](assets/fonts/) (Be Vietnam Pro +
 
 ## Giới hạn
 
-- Không thay thế cho ảnh AI nguyên khối nghệ thuật — cần chất liệu painterly/hand-drawn toàn khung thì dùng `design--cover-image` thuần.
+- Không thay thế cho ảnh AI nguyên khối nghệ thuật — cần chất liệu painterly/hand-drawn toàn khung thì gen AI nguyên khối trực tiếp.
 - Sửa cấu trúc ảnh (pose, thêm bớt vật thể) → regen hoặc inpainting backend, adjustment layer không làm được.
