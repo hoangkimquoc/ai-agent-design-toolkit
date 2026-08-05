@@ -86,9 +86,15 @@ UI auto-detects your browser language (Vietnamese/English) — toggle anytime wi
 - English translation of `SKILL.md` (agent instructions currently in Vietnamese — AI agents follow them regardless of your conversation language)
 - Inpainting backend integration for structural image edits
 
+## Support
+
+If this toolkit saves you time, you can support its development:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/hoangkimquoc)
+
 ## License
 
 Code: [MIT](LICENSE). Bundled fonts (Be Vietnam Pro, Baloo 2): [SIL Open Font License 1.1](skills/design--compose/assets/fonts/OFL.txt).
 
 ---
-Built through an AI-agent pair-design workflow — Hoang Kim Quoc, 2026.
+Built through an AI-agent pair-design workflow — Hoang Kim Quoc, 2026 · [Ko-fi](https://ko-fi.com/hoangkimquoc)

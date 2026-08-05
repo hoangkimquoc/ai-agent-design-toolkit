@@ -79,9 +79,15 @@ python skills/design--compose/scripts/review-server.py --dir <thư-mục-design>
 4. **Bóng và phản chiếu tự dựng** bằng CSS, không nhờ AI vẽ.
 5. **Font có tính cách**: chọn theo mood từng thiết kế, tải subset tiếng Việt về local (`fetch-fonts.py` tự cảnh báo font thiếu tiếng Việt).
 
+## Ủng hộ
+
+Nếu bộ công cụ này giúp bạn tiết kiệm thời gian, có thể mời tác giả một ly cà phê:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-m%E1%BB%9Di%20c%C3%A0%20ph%C3%AA-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/hoangkimquoc)
+
 ## License
 
 Code: [MIT](LICENSE). Fonts đi kèm (Be Vietnam Pro, Baloo 2): [SIL Open Font License 1.1](skills/design--compose/assets/fonts/OFL.txt).
 
 ---
-Xây qua quy trình pair-design người + AI agent — Hoàng Kim Quốc, 2026.
+Xây qua quy trình pair-design người + AI agent — Hoàng Kim Quốc, 2026 · [Ko-fi](https://ko-fi.com/hoangkimquoc)
