@@ -25,7 +25,7 @@
   /* ================= i18n (vi/en) — auto theo browser, toggle trên topbar ================= */
   var LANGS = {
     vi: {
-      select: 'Chọn', comment: 'Comment', snap: 'Snap', exportFb: 'Xuất feedback', save: 'Lưu',
+      select: 'Chọn', comment: 'Comment', snap: 'Snap', exportFb: 'Xuất comment cho AI sửa', save: 'Lưu',
       png: 'Xuất PNG', shooting: 'Đang chụp...', changes: 'thay đổi',
       props: 'Thuộc tính', layersTitle: 'Layers',
       emptyHint: 'Click một element trên thiết kế để chọn.<br><br>Kéo để di chuyển · mũi tên để tinh chỉnh · double-click để sửa chữ.',
@@ -48,7 +48,7 @@
       layerNames: { 'layer-bg': 'Nền (Background)', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Nội dung (Text/UI)' }
     },
     en: {
-      select: 'Select', comment: 'Comment', snap: 'Snap', exportFb: 'Export feedback', save: 'Save',
+      select: 'Select', comment: 'Comment', snap: 'Snap', exportFb: 'Export comment for AI editing', save: 'Save',
       png: 'Export PNG', shooting: 'Capturing...', changes: 'changes',
       props: 'Properties', layersTitle: 'Layers',
       emptyHint: 'Click an element on the canvas to select it.<br><br>Drag to move · arrows to nudge · double-click to edit text.',
@@ -95,6 +95,12 @@
   .rvw-sep{width:1px;height:20px;background:#444;margin:0 6px;}
   .rvw-group{display:flex;align-items:center;gap:4px;}
   .rvw-group:empty{display:none;}
+  .rvw-langsw{display:flex;align-items:center;background:#1e1e1e;border-radius:6px;padding:2px;gap:2px;margin-left:8px;}
+  .rvw-langsw button{display:flex;align-items:center;gap:5px;padding:3px 8px;border:none;border-radius:4px;
+    background:transparent;color:#888;font:600 11px Inter,'Segoe UI',sans-serif;cursor:pointer;}
+  .rvw-langsw button:hover{color:#ccc;}
+  .rvw-langsw button.rvw-lon{background:#3a3a3a;color:#fff;}
+  .rvw-langsw svg{width:16px;height:11px;border-radius:2px;display:block;}
   .rvw-zoom{display:flex;align-items:center;gap:2px;margin-left:4px;color:#aaa;}
   .rvw-zoom button{width:26px;height:26px;border:none;border-radius:4px;background:transparent;color:#ccc;cursor:pointer;font-size:14px;}
   .rvw-zoom button:hover{background:#3a3a3a;}
@@ -206,6 +212,11 @@
     check: '<svg viewBox="0 0 16 16"><path d="M2.5 8.5 6.5 12.5 13.5 4"/></svg>',
     image: '<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.5" cy="6" r="1.2"/><path d="M2.5 12l3.5-4 3 3.5 2-2.5 2.5 3"/></svg>'
   };
+  // Cờ SVG (Windows không render emoji cờ)
+  var FLAGS = {
+    vi: '<svg viewBox="0 0 24 16"><rect width="24" height="16" fill="#da251d"/><path fill="#ffff00" d="M12 3.2l1.06 3.26h3.43l-2.77 2.02 1.06 3.26L12 9.72l-2.78 2.02 1.06-3.26-2.77-2.02h3.43z"/></svg>',
+    en: '<svg viewBox="0 0 24 16"><rect width="24" height="16" fill="#012169"/><path d="M0 0l24 16M24 0L0 16" stroke="#fff" stroke-width="3.2"/><path d="M0 0l24 16M24 0L0 16" stroke="#C8102E" stroke-width="1.3"/><path d="M12 0v16M0 8h24" stroke="#fff" stroke-width="5.4"/><path d="M12 0v16M0 8h24" stroke="#C8102E" stroke-width="3.2"/></svg>'
+  };
 
   /* ================= chrome ================= */
   var topbar = document.createElement('div');
@@ -222,7 +233,9 @@
     '<span class="rvw-group" id="rvw-actions"></span>' +
     '<button class="rvw-tool rvw-export" id="rvw-export" title="' + T.tipExport + '">' + ICONS.export + T.exportFb + '</button>' +
     '<span class="rvw-badge" id="rvw-count">0 ' + T.changes + '</span>' +
-    '<button class="rvw-tool" id="rvw-lang" title="Language / Ngôn ngữ">' + (lang === 'vi' ? 'EN' : 'VI') + '</button>' +
+    '<span class="rvw-langsw" id="rvw-lang" title="Language / Ngôn ngữ">' +
+    '<button data-lang="vi" class="' + (lang === 'vi' ? 'rvw-lon' : '') + '">' + FLAGS.vi + 'VI</button>' +
+    '<button data-lang="en" class="' + (lang === 'en' ? 'rvw-lon' : '') + '">' + FLAGS.en + 'EN</button></span>' +
     '<span class="rvw-zoom"><button id="rvw-zout">−</button><span class="rvw-zval" id="rvw-zval">100%</span>' +
     '<button id="rvw-zin">+</button><button id="rvw-zfit" title="Fit" style="width:auto;padding:0 8px;font-size:11px;">Fit</button></span>';
   document.body.appendChild(topbar);
@@ -903,10 +916,12 @@
   }
   document.getElementById('rvw-mode-select').onclick = function () { setMode('select'); };
   document.getElementById('rvw-mode-comment').onclick = function () { setMode('comment'); };
-  document.getElementById('rvw-lang').onclick = function () {
-    localStorage.setItem('rvw-lang', lang === 'vi' ? 'en' : 'vi');
+  document.getElementById('rvw-lang').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-lang]');
+    if (!b || b.dataset.lang === lang) return;
+    localStorage.setItem('rvw-lang', b.dataset.lang);
     location.reload();
-  };
+  });
 
   /* Comment: click = pin điểm · kéo = khoanh vùng (region) */
   var cdrag = null, marquee = null;
