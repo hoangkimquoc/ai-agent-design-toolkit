@@ -68,9 +68,8 @@ Prompt rules that matter regardless of backend are in `knowledge/prompts/`.
 
 ```bash
 # 1. Ask your AI agent to compose a design (it reads SKILL.md), or copy the template yourself
-# 2. Start the review server and open the editor:
-python skills/design--compose/scripts/review-server.py --dir <design-folder> --port 7799
-# then open: http://127.0.0.1:7799/<design>.html#review
+# 2. Open the review editor (auto-starts the local server):
+python skills/design--compose/scripts/open-review.py <design-folder>/<design>.html
 
 # 3. Edit visually, then click "Xuất PNG" (Export PNG) — done. No AI tokens used.
 ```

@@ -127,12 +127,13 @@ python <path-to-skill>/scripts/compose-screenshot.py \
 
 ## Bước 3.5 — Review tương tác (feedback loop với user)
 
-Output không phải ảnh chết — design file là bề mặt làm việc. Khi giao cho user review, **khởi động review-server (nền) rồi mở Chrome qua HTTP** — server cho phép nút "Xuất PNG" hoạt động 0 token:
+Output không phải ảnh chết — design file là bề mặt làm việc. **Ngay khi dựng xong design HTML (cuối Bước 2), mở preview luôn — đừng để user phải tự kiếm file:**
 
 ```bash
-python <path-to-skill>/scripts/review-server.py --dir <output-dir> --port 7799 &
-"C:/Program Files/Google/Chrome/Application/chrome.exe" "http://127.0.0.1:7799/design-{slug}.html#review"
+python <path-to-skill>/scripts/open-review.py <output-dir>/design-{slug}.html
 ```
+
+Một lệnh lo trọn: tái dùng review-server đang serve đúng thư mục (hoặc tự khởi động nền ở port trống), chờ sẵn sàng, mở browser mặc định vào `#review`.
 
 (Fallback không server: mở `file:///<đường-dẫn>/design-{slug}.html#review` — nút Xuất PNG tự ẩn, còn lại hoạt động đủ. Đừng đưa link dạng text — IDE/chat encode `?`/`#` gây ERR_FILE_NOT_FOUND, luôn mở bằng lệnh.)
 

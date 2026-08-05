@@ -48,7 +48,8 @@ class ReviewHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/__review__/ping":
-            return self._json(200, {"ok": True})
+            # dir để open-review.py nhận diện server nào đang serve thư mục nào
+            return self._json(200, {"ok": True, "dir": os.getcwd()})
         if parsed.path.startswith("/__skill__/"):
             rel = parsed.path[len("/__skill__/"):]
             full = os.path.normpath(os.path.join(SKILL_DIR, rel))

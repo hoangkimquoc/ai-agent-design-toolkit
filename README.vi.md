@@ -68,9 +68,8 @@ Quy tắc prompt quan trọng (mọi backend) nằm ở `knowledge/prompts/`.
 
 ```bash
 # 1. Nhờ AI agent ghép thiết kế (nó đọc SKILL.md), hoặc tự copy template
-# 2. Bật review server và mở editor:
-python skills/design--compose/scripts/review-server.py --dir <thư-mục-design> --port 7799
-# rồi mở: http://127.0.0.1:7799/<design>.html#review
+# 2. Mở review editor (tự bật server local):
+python skills/design--compose/scripts/open-review.py <thư-mục-design>/<design>.html
 
 # 3. Chỉnh trực tiếp, bấm "Xuất PNG" — xong. Không tốn token AI.
 ```
