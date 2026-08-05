@@ -22,6 +22,60 @@
   var pinCount = 0;
   var zoom = 1;
 
+  /* ================= i18n (vi/en) — auto theo browser, toggle trên topbar ================= */
+  var LANGS = {
+    vi: {
+      select: 'Chọn', comment: 'Comment', snap: 'Snap', exportFb: 'Xuất feedback', save: 'Lưu',
+      png: 'Xuất PNG', shooting: 'Đang chụp...', changes: 'thay đổi',
+      props: 'Thuộc tính', layersTitle: 'Layers',
+      emptyHint: 'Click một element trên thiết kế để chọn.<br><br>Kéo để di chuyển · mũi tên để tinh chỉnh · double-click để sửa chữ.',
+      multiSel: ' elements đã chọn',
+      multiHint: 'Kéo để di chuyển cả nhóm · mũi tên nudge · Delete ẩn tất cả · Shift+click để thêm/bớt · Esc bỏ chọn.',
+      rot: 'Xoay (°)', op: 'Mờ (%)', fs: 'Cỡ chữ (px)', content: 'Nội dung',
+      flipH: 'Lật ngang', flipV: 'Lật dọc', zUp: 'Lên trước', zDown: 'Ra sau',
+      notePoint: 'Ghi chú cho vị trí này...', noteRegion: 'Ghi chú cho vùng này...',
+      cancel: 'Hủy', saveNote: 'Lưu',
+      tipSelect: 'Chọn và di chuyển (V)', tipComment: 'Đặt ghi chú (C)',
+      tipSnap: 'Snap & alignment guides (giữ Alt để tạm tắt)',
+      tipUndo: 'Hoàn tác (Ctrl+Z)', undoMax: ' bước (theo RAM)',
+      tipExport: 'Gửi thay đổi/comment cho AI agent khi cần thiết kế tiếp',
+      tipSave: 'Lưu mọi chỉnh sửa live vào file HTML source (backup .bak)',
+      tipPng: 'Lưu source + chụp PNG chính thức ngay trên máy — không qua AI',
+      tipRotHandle: 'Kéo để xoay (Shift = bước 15°)',
+      savedSource: 'Đã lưu source:\n', exported: 'Đã lưu source + xuất PNG:\n',
+      errSave: 'Lỗi lưu: ', errExport: 'Lỗi xuất: ', errServer: 'Không kết nối được review server: ',
+      commentN: 'Comment ',
+      layerNames: { 'layer-bg': 'Nền (Background)', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Nội dung (Text/UI)' }
+    },
+    en: {
+      select: 'Select', comment: 'Comment', snap: 'Snap', exportFb: 'Export feedback', save: 'Save',
+      png: 'Export PNG', shooting: 'Capturing...', changes: 'changes',
+      props: 'Properties', layersTitle: 'Layers',
+      emptyHint: 'Click an element on the canvas to select it.<br><br>Drag to move · arrows to nudge · double-click to edit text.',
+      multiSel: ' elements selected',
+      multiHint: 'Drag to move the group · arrows to nudge · Delete hides all · Shift+click to add/remove · Esc to deselect.',
+      rot: 'Rotate (°)', op: 'Opacity (%)', fs: 'Font size (px)', content: 'Content',
+      flipH: 'Flip H', flipV: 'Flip V', zUp: 'Forward', zDown: 'Backward',
+      notePoint: 'Note for this spot...', noteRegion: 'Note for this region...',
+      cancel: 'Cancel', saveNote: 'Save',
+      tipSelect: 'Select & move (V)', tipComment: 'Add comment (C)',
+      tipSnap: 'Snap & alignment guides (hold Alt to bypass)',
+      tipUndo: 'Undo (Ctrl+Z)', undoMax: ' steps (RAM-based)',
+      tipExport: 'Send changes/comments to your AI agent for further design work',
+      tipSave: 'Save live edits into the source HTML file (.bak backup)',
+      tipPng: 'Save source + capture the official PNG locally — no AI involved',
+      tipRotHandle: 'Drag to rotate (Shift = 15° steps)',
+      savedSource: 'Source saved:\n', exported: 'Source saved + PNG exported:\n',
+      errSave: 'Save error: ', errExport: 'Export error: ', errServer: 'Cannot reach review server: ',
+      commentN: 'Comment ',
+      layerNames: { 'layer-bg': 'Background', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Content (Text/UI)' }
+    }
+  };
+  var lang = localStorage.getItem('rvw-lang') ||
+    ((navigator.language || '').toLowerCase().indexOf('vi') === 0 ? 'vi' : 'en');
+  if (!LANGS[lang]) lang = 'en';
+  var T = LANGS[lang];
+
   var BLOCK_SEL = '.layer-art .slot,.layer-content .title-block,.layer-content .chips,.layer-content .dots';
   var TEXT_SEL = '.title,.subtitle,.cta,.badge,.meta-note,.chip span,.passport-label,.qr-id,.layer-content h1,.layer-content p';
 
@@ -156,33 +210,33 @@
   topbar.className = 'rvw-topbar rvw';
   topbar.innerHTML =
     '<span class="rvw-title">Design Review</span>' +
-    '<button class="rvw-tool rvw-active" id="rvw-mode-select" title="Chọn và di chuyển (V)">' + ICONS.select + 'Chọn</button>' +
-    '<button class="rvw-tool" id="rvw-mode-comment" title="Đặt ghi chú (C)">' + ICONS.comment + 'Comment</button>' +
-    '<button class="rvw-tool rvw-active" id="rvw-snap" title="Snap & alignment guides (giữ Alt để tạm tắt)">' + ICONS.grid + 'Snap</button>' +
-    '<button class="rvw-tool" id="rvw-undo" title="Hoàn tác (Ctrl+Z)">' + ICONS.undo + '</button>' +
+    '<button class="rvw-tool rvw-active" id="rvw-mode-select" title="' + T.tipSelect + '">' + ICONS.select + T.select + '</button>' +
+    '<button class="rvw-tool" id="rvw-mode-comment" title="' + T.tipComment + '">' + ICONS.comment + T.comment + '</button>' +
+    '<button class="rvw-tool rvw-active" id="rvw-snap" title="' + T.tipSnap + '">' + ICONS.grid + T.snap + '</button>' +
+    '<button class="rvw-tool" id="rvw-undo" title="' + T.tipUndo + '">' + ICONS.undo + '</button>' +
+    '<button class="rvw-tool" id="rvw-lang" title="Language / Ngôn ngữ">' + (lang === 'vi' ? 'EN' : 'VI') + '</button>' +
     '<span class="rvw-sep"></span>' +
-    '<button class="rvw-tool rvw-export" id="rvw-export" title="Gửi thay đổi/comment cho Claude khi cần Claude thiết kế tiếp">' + ICONS.export + 'Xuất feedback</button>' +
-    '<span class="rvw-badge" id="rvw-count">0 thay đổi</span>' +
+    '<button class="rvw-tool rvw-export" id="rvw-export" title="' + T.tipExport + '">' + ICONS.export + T.exportFb + '</button>' +
+    '<span class="rvw-badge" id="rvw-count">0 ' + T.changes + '</span>' +
     '<span class="rvw-zoom"><button id="rvw-zout">−</button><span class="rvw-zval" id="rvw-zval">100%</span>' +
     '<button id="rvw-zin">+</button><button id="rvw-zfit" title="Vừa màn hình" style="width:auto;padding:0 8px;font-size:11px;">Fit</button></span>';
   document.body.appendChild(topbar);
 
   var panel = document.createElement('div');
   panel.className = 'rvw-panel rvw';
-  panel.innerHTML = '<h3>Thuộc tính</h3><div class="rvw-empty">Click một element trên thiết kế để chọn.<br><br>' +
-    'Kéo để di chuyển · mũi tên để tinh chỉnh · double-click để sửa chữ.</div>';
+  panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-empty">' + T.emptyHint + '</div>';
   document.body.appendChild(panel);
 
   /* ---------- Layers panel (trái): cây phân lớp, chọn đúng element, ẩn/hiện ---------- */
   var EYE_OPEN = '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>';
   var EYE_OFF = '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M3 13L13 3"/></svg>';
-  var LAYER_NAMES = { 'layer-bg': 'Nền (Background)', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Nội dung (Text/UI)' };
+  var LAYER_NAMES = T.layerNames;
   var ITEM_SEL = '.slot,.adjust,.scrim,img,.qr-card,.chip,.brand-logo,.content-top,.content-main,.content-bottom,' + TEXT_SEL + ',' + BLOCK_SEL;
   var elRow = new Map();
 
   var layersPanel = document.createElement('div');
   layersPanel.className = 'rvw-layers rvw';
-  layersPanel.innerHTML = '<h3>Layers</h3>';
+  layersPanel.innerHTML = '<h3>' + T.layersTitle + '</h3>';
   var treeBox = document.createElement('div');
   layersPanel.appendChild(treeBox);
   document.body.appendChild(layersPanel);
@@ -237,7 +291,7 @@
   var selbox = document.createElement('div');
   selbox.className = 'rvw-selbox';
   selbox.style.display = 'none';
-  selbox.innerHTML = '<div class="rvw-rotline"></div><div class="rvw-h rot" title="Kéo để xoay (Shift = bước 15°)"></div>' +
+  selbox.innerHTML = '<div class="rvw-rotline"></div><div class="rvw-h rot" title="' + T.tipRotHandle + '"></div>' +
     '<div class="rvw-h nw"></div><div class="rvw-h ne"></div><div class="rvw-h sw"></div><div class="rvw-h se"></div>';
   document.body.appendChild(selbox);
 
@@ -337,7 +391,7 @@
   function updateCount() {
     var n = Object.keys(changes.texts).length + Object.keys(changes.moves).length +
       Object.keys(changes.props).length + changes.pins.length;
-    document.getElementById('rvw-count').textContent = n + ' thay đổi';
+    document.getElementById('rvw-count').textContent = n + ' ' + T.changes;
   }
   function isText(el) { return el.matches(TEXT_SEL); }
 
@@ -389,16 +443,15 @@
 
   function renderPanel() {
     if (!selected) {
-      panel.innerHTML = '<h3>Thuộc tính</h3><div class="rvw-empty">Click một element trên thiết kế để chọn.<br><br>' +
-        'Kéo để di chuyển · mũi tên để tinh chỉnh · double-click để sửa chữ.</div>';
+      panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-empty">' + T.emptyHint + '</div>';
       return;
     }
     var el = selected, fr = frameRect(), r = el.getBoundingClientRect();
     var x = pctX(r.left - fr.left).toFixed(1), y = pctY(r.top - fr.top).toFixed(1);
     var w = pctX(r.width).toFixed(1), h = pctY(r.height).toFixed(1);
     if (extraSel.length) {
-      panel.innerHTML = '<h3>Thuộc tính</h3><div class="rvw-elname">' + (extraSel.length + 1) + ' elements đã chọn</div>' +
-        '<div class="rvw-empty">Kéo để di chuyển cả nhóm · mũi tên nudge · Delete ẩn tất cả · Shift+click để thêm/bớt · Esc bỏ chọn.</div>';
+      panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-elname">' + (extraSel.length + 1) + T.multiSel + '</div>' +
+        '<div class="rvw-empty">' + T.multiHint + '</div>';
       return;
     }
     var st = getState(el);
@@ -408,15 +461,15 @@
       '<div class="rvw-field"><label>Y (%)</label><input id="rvw-y" type="number" step="0.5" value="' + y + '"></div>' +
       '<div class="rvw-field"><label>W (%)</label><input id="rvw-w" type="number" step="0.5" value="' + w + '"></div>' +
       '<div class="rvw-field"><label>H (%)</label><input id="rvw-h" type="number" step="0.5" value="' + h + '"></div>' +
-      '<div class="rvw-field"><label>Xoay (°)</label><input id="rvw-rot" type="number" step="1" value="' + st.rot + '"></div>' +
-      '<div class="rvw-field"><label>Mờ (%)</label><input id="rvw-op" type="number" min="0" max="100" step="5" value="' + op + '"></div>' +
+      '<div class="rvw-field"><label>' + T.rot + '</label><input id="rvw-rot" type="number" step="1" value="' + st.rot + '"></div>' +
+      '<div class="rvw-field"><label>' + T.op + '</label><input id="rvw-op" type="number" min="0" max="100" step="5" value="' + op + '"></div>' +
       '<div class="rvw-field rvw-wide rvw-btnrow">' +
-      '<button id="rvw-fliph">Lật ngang</button><button id="rvw-flipv">Lật dọc</button>' +
-      '<button id="rvw-zup">Lên trước</button><button id="rvw-zdown">Ra sau</button></div>';
+      '<button id="rvw-fliph">' + T.flipH + '</button><button id="rvw-flipv">' + T.flipV + '</button>' +
+      '<button id="rvw-zup">' + T.zUp + '</button><button id="rvw-zdown">' + T.zDown + '</button></div>';
     if (isText(el)) {
       var fs = parseFloat(getComputedStyle(el).fontSize);
-      html += '<div class="rvw-field"><label>Cỡ chữ (px)</label><input id="rvw-fs" type="number" step="1" value="' + Math.round(fs) + '"></div>' +
-        '<div class="rvw-field rvw-wide"><label>Nội dung</label><textarea id="rvw-text">' + el.textContent.trim() + '</textarea></div>';
+      html += '<div class="rvw-field"><label>' + T.fs + '</label><input id="rvw-fs" type="number" step="1" value="' + Math.round(fs) + '"></div>' +
+        '<div class="rvw-field rvw-wide"><label>' + T.content + '</label><textarea id="rvw-text">' + el.textContent.trim() + '</textarea></div>';
     }
     html += '</div>';
     panel.innerHTML = html;
@@ -586,7 +639,7 @@
     updateCount(); refreshBoxes(); renderPanel();
   }
   document.getElementById('rvw-undo').onclick = doUndo;
-  document.getElementById('rvw-undo').title = 'Hoàn tác (Ctrl+Z) · tối đa ' + MAX_UNDO + ' bước (theo RAM)';
+  document.getElementById('rvw-undo').title = T.tipUndo + ' · ' + MAX_UNDO + T.undoMax;
   /* Multi-select: selected = primary, extraSel = các element chọn thêm (Shift+click / marquee) */
   var extraSel = [];
   function selectionAll() {
@@ -845,6 +898,10 @@
   }
   document.getElementById('rvw-mode-select').onclick = function () { setMode('select'); };
   document.getElementById('rvw-mode-comment').onclick = function () { setMode('comment'); };
+  document.getElementById('rvw-lang').onclick = function () {
+    localStorage.setItem('rvw-lang', lang === 'vi' ? 'en' : 'vi');
+    location.reload();
+  };
 
   /* Comment: click = pin điểm · kéo = khoanh vùng (region) */
   var cdrag = null, marquee = null;
@@ -854,8 +911,8 @@
     note.className = 'rvw-note rvw';
     note.style.left = Math.min(clientX, window.innerWidth - 260) + 'px';
     note.style.top = Math.min(clientY + 10, window.innerHeight - 150) + 'px';
-    note.innerHTML = '<textarea placeholder="' + (w ? 'Ghi chú cho vùng này...' : 'Ghi chú cho vị trí này...') + '"></textarea>' +
-      '<div class="rvw-actions"><button class="rvw-cancel">Hủy</button><button class="rvw-save">Lưu</button></div>';
+    note.innerHTML = '<textarea placeholder="' + (w ? T.noteRegion : T.notePoint) + '"></textarea>' +
+      '<div class="rvw-actions"><button class="rvw-cancel">' + T.cancel + '</button><button class="rvw-save">' + T.saveNote + '</button></div>';
     document.body.appendChild(note);
     note.querySelector('textarea').focus();
     note.querySelector('.rvw-cancel').onclick = function () { note.remove(); };
@@ -941,7 +998,7 @@
       var r = p.getBoundingClientRect();
       viewer.style.left = Math.min(r.right + 10, window.innerWidth - 270) + 'px';
       viewer.style.top = Math.min(r.top - 4, window.innerHeight - 130) + 'px';
-      viewer.innerHTML = '<div class="rvw-note-head">Comment ' + p.dataset.n + '</div><div class="rvw-note-body"></div>';
+      viewer.innerHTML = '<div class="rvw-note-head">' + T.commentN + p.dataset.n + '</div><div class="rvw-note-body"></div>';
       viewer.querySelector('.rvw-note-body').textContent = p.dataset.note;
       document.body.appendChild(viewer);
     } else if (!e.target.closest('.rvw-note')) hideNoteView();
@@ -1034,33 +1091,33 @@
       var saveBtn = document.createElement('button');
       saveBtn.className = 'rvw-tool';
       saveBtn.id = 'rvw-save';
-      saveBtn.title = 'Lưu mọi chỉnh sửa live vào file HTML source (backup .bak)';
-      saveBtn.innerHTML = ICONS.check + 'Lưu';
+      saveBtn.title = T.tipSave;
+      saveBtn.innerHTML = ICONS.check + T.save;
       document.getElementById('rvw-export').after(saveBtn);
       saveBtn.onclick = function () {
         fetch('/__review__/save?name=' + encodeURIComponent(fileName), { method: 'POST', body: cleanHTML() })
           .then(function (r) { return r.json(); })
-          .then(function (res) { alert(res.ok ? 'Đã lưu source:\n' + res.path : 'Lỗi lưu: ' + res.error); })
-          .catch(function (err) { alert('Không kết nối được review server: ' + err); });
+          .then(function (res) { alert(res.ok ? T.savedSource + res.path : T.errSave + res.error); })
+          .catch(function (err) { alert(T.errServer + err); });
       };
       // Nút Xuất PNG — lưu source TRƯỚC rồi chụp từ source → PNG luôn khớp HTML
       var btn = document.createElement('button');
       btn.className = 'rvw-tool rvw-png';
       btn.id = 'rvw-png';
-      btn.title = 'Lưu source + chụp PNG chính thức ngay trên máy — không qua Claude';
-      btn.innerHTML = ICONS.image + 'Xuất PNG';
+      btn.title = T.tipPng;
+      btn.innerHTML = ICONS.image + T.png;
       saveBtn.after(btn);
       btn.onclick = function () {
-        btn.disabled = true; btn.innerHTML = ICONS.image + 'Đang chụp...';
+        btn.disabled = true; btn.innerHTML = ICONS.image + T.shooting;
         fetch('/__review__/export?w=' + frame.offsetWidth + '&h=' + frame.offsetHeight +
           '&name=' + encodeURIComponent(fileName), {
           method: 'POST', body: cleanHTML()
         }).then(function (r) { return r.json(); }).then(function (res) {
-          btn.disabled = false; btn.innerHTML = ICONS.image + 'Xuất PNG';
-          alert(res.ok ? 'Đã lưu source + xuất PNG:\n' + res.path : 'Lỗi xuất: ' + res.error);
+          btn.disabled = false; btn.innerHTML = ICONS.image + T.png;
+          alert(res.ok ? T.exported + res.path : T.errExport + res.error);
         }).catch(function (err) {
-          btn.disabled = false; btn.innerHTML = ICONS.image + 'Xuất PNG';
-          alert('Không kết nối được review server: ' + err);
+          btn.disabled = false; btn.innerHTML = ICONS.image + T.png;
+          alert(T.errServer + err);
         });
       };
     }).catch(function () { /* mở qua file:// → không có server, dùng flow feedback/Hoàn tất */ });

@@ -61,6 +61,8 @@ python skills/design--compose/scripts/review-server.py --dir <design-folder> --p
 
 ## The review editor
 
+UI auto-detects your browser language (Vietnamese/English) — toggle anytime with the VI/EN button on the topbar.
+
 - **Select (V)**: click = outer group · double-click = drill one level deeper · Ctrl+click = deepest element · Shift+click = add/remove from multi-selection · drag on empty canvas = marquee-select
 - Drag to move with **snap & alignment guides** (frame + sibling edges/centers, hold Alt to bypass) · arrows nudge 2px, Shift+arrows 10px · Delete hides element
 - Double-click text to edit inline — properties panel edits X/Y/W/H, rotation, opacity, flip, z-order, font size
@@ -82,7 +84,6 @@ python skills/design--compose/scripts/review-server.py --dir <design-folder> --p
 ## Roadmap
 
 - English translation of `SKILL.md` (agent instructions currently in Vietnamese — AI agents follow them regardless of your conversation language)
-- English UI option for the review editor
 - Inpainting backend integration for structural image edits
 
 ## License
