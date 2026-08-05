@@ -4,6 +4,8 @@
 
 *English: [README.md](README.md)*
 
+![Editor review — poster iPhone 16 ghép lớp và chỉnh trực tiếp trên browser](docs/showcase.png)
+
 Xây cho AI coding agent (Claude Code, Codex, Qwen...) đọc skill và làm theo, nhưng mọi công cụ đều chạy độc lập được.
 
 ## Vì sao

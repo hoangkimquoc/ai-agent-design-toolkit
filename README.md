@@ -4,6 +4,8 @@
 
 *Đọc tiếng Việt: [README.vi.md](README.vi.md)*
 
+![The review editor — layered iPhone 16 poster composed and edited entirely in the browser](docs/showcase.png)
+
 Built for AI coding agents (Claude Code, Codex, Qwen...) that follow skill instructions, but every tool works standalone.
 
 ## Why
