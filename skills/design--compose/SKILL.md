@@ -157,10 +157,11 @@ Nhận feedback JSON từ user → áp `texts` / `moves` / `pins` vào source HT
 
 Cuối mỗi phiên thiết kế, agent PHẢI chốt sổ kinh nghiệm vào `knowledge/` (cạnh thư mục skills):
 
-1. Tạo `knowledge/sessions/YYYY-MM-DD-<slug>.md`: đã làm gì, feedback nào của user, bài học nào (mẫu: session 2026-08-05 có sẵn).
+1. Chạy `python <path-to-skill>/scripts/knowledge-manager.py --new-session <slug>` rồi điền 4 mục (đã làm, feedback, bug, bài học).
 2. Mẹo đã kiểm chứng ≥ 2 lần → thăng cấp thành `knowledge/patterns/<tên>.md`.
 3. Kinh nghiệm prompt gen ảnh → ghi vào `knowledge/prompts/<backend>.md`.
 4. Quy tắc sống còn → đề xuất user cho ghi thẳng vào SKILL.md này.
+5. Chốt: `knowledge-manager.py --audit --index` — audit phải sạch trước khi kết thúc phiên.
 
 ## Fonts
 

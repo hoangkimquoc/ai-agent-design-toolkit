@@ -10,6 +10,15 @@ Cấu trúc để kinh nghiệm thiết kế của bạn (và AI agent) được
 
 Quy ước đặt tên: `sessions/YYYY-MM-DD-<slug>.md` · `patterns/<ten-pattern>.md`.
 
+**Script quản lý** (`skills/design--compose/scripts/knowledge-manager.py`):
+
+```bash
+python .../knowledge-manager.py --status              # tổng quan + cảnh báo lâu chưa wrap-up
+python .../knowledge-manager.py --new-session <slug>  # scaffold session note hôm nay
+python .../knowledge-manager.py --audit               # kiểm naming, thiếu mục Bài học, prompts trống
+python .../knowledge-manager.py --index               # sinh INDEX.md tổng hợp
+```
+
 **Vòng đời một bài học**: xuất hiện trong session note → lặp lại và được kiểm chứng → thăng cấp thành pattern → nếu là quy tắc sống còn thì ghi thẳng vào SKILL.md (agent đọc mỗi lần chạy).
 
 ---
