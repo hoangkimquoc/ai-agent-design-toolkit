@@ -76,8 +76,53 @@
   if (!LANGS[lang]) lang = 'en';
   var T = LANGS[lang];
 
-  var BLOCK_SEL = '.layer-art .slot,.layer-content .title-block,.layer-content .chips,.layer-content .dots';
-  var TEXT_SEL = '.title,.subtitle,.cta,.badge,.meta-note,.chip span,.passport-label,.qr-id,.layer-content h1,.layer-content p';
+  /* ===== Hit-testing tổng quát — overlay KHÔNG phụ thuộc tên class của design =====
+     (fix 2026-08-05: design ngoài template gốc như pawos có class tùy ý → selector
+     hard-code làm click xuyên qua và không kéo được element trong group lạ) */
+  var OVERLAY_UI = '.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-pin,.rvw-region,.rvw-selbox,.rvw-hoverbox,.rvw-guide,.rvw-marquee';
+  function classOf(el) { return (el.getAttribute && el.getAttribute('class')) || ''; }
+  function isLayerEl(el) { return /(^| )layer-/.test(classOf(el)); }
+  function inDesign(el) {
+    return el && el.nodeType === 1 && el !== frame && frame.contains(el) &&
+      classOf(el).indexOf('rvw-') < 0 && !(el.closest && el.closest(OVERLAY_UI));
+  }
+  function hasDirectText(el) {
+    return Array.prototype.some.call(el.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); });
+  }
+  function isTextEl(el) { return !!el && !!el.childNodes && hasDirectText(el); }
+  // "Solid" tại điểm nhìn: media, có chữ trực tiếp, hoặc có nền/viền/bóng thấy được
+  function isSolid(el) {
+    if (/^(IMG|SVG|VIDEO|CANVAS|PICTURE)$/i.test(el.tagName)) return true;
+    if (hasDirectText(el)) return true;
+    var cs = getComputedStyle(el);
+    return cs.backgroundColor !== 'rgba(0, 0, 0, 0)' || cs.backgroundImage !== 'none' ||
+      parseFloat(cs.borderTopWidth) > 0 || (cs.boxShadow && cs.boxShadow !== 'none');
+  }
+  // Element thiết kế trên cùng THẬT SỰ dưới con trỏ (bỏ qua container trong suốt che khuất)
+  function pickAtPoint(x, y) {
+    var list = document.elementsFromPoint(x, y);
+    var fallback = null;
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      if (!inDesign(el) || isLayerEl(el)) continue;
+      if (!fallback) fallback = el;
+      if (isSolid(el)) return el;
+    }
+    return fallback;
+  }
+  // Group ngoài cùng: con trực tiếp của một layer-* (hoặc của frame)
+  function outerGroup(el) {
+    var n = el;
+    while (n.parentElement && n.parentElement !== frame && !isLayerEl(n.parentElement)) n = n.parentElement;
+    return n;
+  }
+  // Tập element dùng cho snap/marquee: mọi con trực tiếp của các layer
+  function topLevelElements() {
+    return Array.prototype.filter.call(
+      frame.querySelectorAll('.layer-art > *, .layer-content > *'),
+      function (o) { return classOf(o).indexOf('rvw-') < 0; }
+    );
+  }
 
   /* ================= theme ================= */
   var css = `
@@ -192,8 +237,9 @@
   /* Hit-testing khi review: container phủ toàn khung cho xuyên qua,
      còn element tương tác (chữ, block, slot) bắt sự kiện — kể cả khi
      design file đặt pointer-events:none trên layer-content */
-  body.rvw-canvas .layer-content,body.rvw-canvas .layer-adjust{pointer-events:none !important;}
-  body.rvw-canvas :is(${TEXT_SEL},${BLOCK_SEL}){pointer-events:auto !important;}
+  body.rvw-canvas .frame{pointer-events:auto !important;}
+  body.rvw-canvas .frame :not([class*="rvw-"]){pointer-events:auto !important;}
+  body.rvw-canvas .layer-adjust,body.rvw-canvas .layer-adjust *{pointer-events:none !important;}
   body.rvw-canvas .frame{user-select:none;}
   body.rvw-canvas .frame img{-webkit-user-drag:none;}`;
   var st = document.createElement('style');
@@ -249,7 +295,12 @@
   var EYE_OPEN = '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>';
   var EYE_OFF = '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M3 13L13 3"/></svg>';
   var LAYER_NAMES = T.layerNames;
-  var ITEM_SEL = '.slot,.adjust,.scrim,img,.qr-card,.chip,.brand-logo,.content-top,.content-main,.content-bottom,' + TEXT_SEL + ',' + BLOCK_SEL;
+  // Node đáng hiện trong tree: media, có chữ trực tiếp, hoặc chứa media/chữ bên trong
+  function isInterestingNode(el) {
+    if (classOf(el).indexOf('rvw-') >= 0) return false;
+    if (/^(IMG|SVG|VIDEO|CANVAS|PICTURE)$/i.test(el.tagName)) return true;
+    return hasDirectText(el);
+  }
   var elRow = new Map();
 
   var layersPanel = document.createElement('div');
@@ -269,8 +320,10 @@
 
   function buildNode(el, depth, container) {
     var kids = Array.prototype.filter.call(el.children, function (c) {
-      if (c.classList && Array.prototype.some.call(c.classList, function (x) { return x.indexOf('rvw-') === 0; })) return false;
-      return (c.matches && c.matches(ITEM_SEL)) || (c.querySelector && c.querySelector(ITEM_SEL));
+      if (classOf(c).indexOf('rvw-') >= 0) return false;
+      return isInterestingNode(c) ||
+        (c.querySelector && c.querySelector('img,svg,video,canvas,picture')) ||
+        (c.textContent && c.textContent.trim());
     });
     var row = document.createElement('div');
     row.className = 'rvw-lrow';
@@ -411,7 +464,7 @@
       Object.keys(changes.props).length + changes.pins.length;
     document.getElementById('rvw-count').textContent = n + ' ' + T.changes;
   }
-  function isText(el) { return el.matches(TEXT_SEL); }
+  function isText(el) { return isTextEl(el); }
 
   /* ================= zoom ================= */
   function setZoom(z) {
@@ -687,7 +740,15 @@
   document.addEventListener('mousemove', function (e) {
     if (mode !== 'select' || drag || resizing) { hoverbox.style.display = 'none'; }
     else {
-      var t = e.target.closest && !e.target.closest('.rvw-topbar,.rvw-panel,.rvw-note,.rvw-pin') ? (e.target.closest(TEXT_SEL) || e.target.closest(BLOCK_SEL)) : null;
+      var t = null;
+      if (!(e.target.closest && e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-pin'))) {
+        var dh = pickAtPoint(e.clientX, e.clientY);
+        if (dh) {
+          var mh = selectionAll();
+          for (var mhi = 0; mhi < mh.length; mhi++) if (mh[mhi].contains(dh)) { t = mh[mhi]; break; }
+          if (!t) t = outerGroup(dh);
+        }
+      }
       if (t && t !== selected) {
         var r = t.getBoundingClientRect();
         hoverbox.style.display = 'block';
@@ -783,15 +844,16 @@
     // Select model kiểu Figma:
     //  - Ctrl/Cmd+click → deep select · Shift+click → thêm/bớt vào nhóm
     //  - click member của nhóm = kéo CẢ NHÓM · click vùng trống = quét marquee chọn nhiều
+    var deep = pickAtPoint(e.clientX, e.clientY);
     var t = null;
-    if (e.ctrlKey || e.metaKey) t = e.target.closest(ITEM_SEL);
-    else {
+    if (e.ctrlKey || e.metaKey) t = deep; // deep-select: element solid sâu nhất dưới chuột
+    else if (deep) {
       var members0 = selectionAll();
       for (var mi = 0; mi < members0.length; mi++) {
-        if (members0[mi] === e.target || members0[mi].contains(e.target)) { t = members0[mi]; break; }
+        if (members0[mi] === deep || members0[mi].contains(deep)) { t = members0[mi]; break; }
       }
+      if (!t) t = outerGroup(deep);
     }
-    if (!t) t = e.target.closest(BLOCK_SEL) || e.target.closest(TEXT_SEL);
     if (!t || e.target.isContentEditable) {
       if (!t) startMarquee(e);
       return;
@@ -811,7 +873,7 @@
     var r0 = t.getBoundingClientRect(), fr0 = frameRect();
     var xs = [fr0.left, fr0.left + fr0.width / 2, fr0.right];
     var ys = [fr0.top, fr0.top + fr0.height / 2, fr0.bottom];
-    document.querySelectorAll(BLOCK_SEL + ',' + TEXT_SEL).forEach(function (o) {
+    topLevelElements().forEach(function (o) {
       if (members.some(function (m) { return m === o || m.contains(o) || o.contains(m); })) return;
       if (getComputedStyle(o).visibility === 'hidden') return;
       var ro = o.getBoundingClientRect();
@@ -853,7 +915,7 @@
         var rl = Math.min(selq.sx, e.clientX), rt = Math.min(selq.sy, e.clientY);
         var rr2 = Math.max(selq.sx, e.clientX), rb = Math.max(selq.sy, e.clientY);
         var hits = [];
-        document.querySelectorAll(BLOCK_SEL + ',' + TEXT_SEL).forEach(function (o) {
+        topLevelElements().forEach(function (o) {
           if (getComputedStyle(o).visibility === 'hidden') return;
           var ro = o.getBoundingClientRect();
           if (!ro.width && !ro.height) return;
@@ -894,16 +956,16 @@
     if (mode !== 'select') return;
     if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-note,.rvw-pin,.rvw-region')) return;
     e.preventDefault();
-    var textEl = e.target.closest(TEXT_SEL);
-    if (textEl && selected === textEl) { startEdit(textEl); return; }
-    if (selected && selected !== e.target && selected.contains(e.target)) {
-      var n = e.target;
+    var deep = pickAtPoint(e.clientX, e.clientY);
+    if (!deep) return;
+    if (selected === deep && isTextEl(deep)) { startEdit(deep); return; }
+    if (selected && selected !== deep && selected.contains(deep)) {
+      var n = deep;
       while (n && n.parentElement !== selected) n = n.parentElement;
       if (n) { select(n); return; }
     }
-    if (textEl) { select(textEl); startEdit(textEl); return; }
-    var b = e.target.closest(BLOCK_SEL);
-    if (b) select(b);
+    if (isTextEl(deep)) { select(deep); startEdit(deep); return; }
+    select(outerGroup(deep));
   });
 
   /* ================= comment mode ================= */
