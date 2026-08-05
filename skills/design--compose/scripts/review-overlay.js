@@ -34,6 +34,7 @@
       rot: 'Xoay (°)', op: 'Mờ (%)', fs: 'Cỡ chữ (px)', content: 'Nội dung',
       flipH: 'Lật ngang', flipV: 'Lật dọc', zUp: 'Lên trước', zDown: 'Ra sau',
       align: 'Căn chữ', alLeft: 'Trái', alCenter: 'Giữa', alRight: 'Phải',
+      secPosition: 'Vị trí', secLayout: 'Kích thước', secAppearance: 'Hiển thị', secTypography: 'Chữ',
       notePoint: 'Ghi chú cho vị trí này...', noteRegion: 'Ghi chú cho vùng này...',
       cancel: 'Hủy', saveNote: 'Lưu',
       tipSelect: 'Chọn và di chuyển (V)', tipComment: 'Đặt ghi chú (C)',
@@ -59,6 +60,7 @@
       rot: 'Rotate (°)', op: 'Opacity (%)', fs: 'Font size (px)', content: 'Content',
       flipH: 'Flip H', flipV: 'Flip V', zUp: 'Forward', zDown: 'Backward',
       align: 'Text align', alLeft: 'Left', alCenter: 'Center', alRight: 'Right',
+      secPosition: 'Position', secLayout: 'Layout', secAppearance: 'Appearance', secTypography: 'Typography',
       notePoint: 'Note for this spot...', noteRegion: 'Note for this region...',
       cancel: 'Cancel', saveNote: 'Save',
       tipSelect: 'Select & move (V)', tipComment: 'Add comment (C)',
@@ -170,6 +172,10 @@
     padding:14px 14px 6px;margin:0;}
   .rvw-panel .rvw-empty{padding:8px 14px;color:#777;line-height:1.5;}
   .rvw-fields{padding:4px 14px 14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;}
+  .rvw-section{border-top:1px solid #333;}
+  .rvw-section:first-of-type{border-top:none;}
+  .rvw-sectitle{padding:10px 14px 0;font-size:11px;font-weight:600;color:#999;
+    text-transform:uppercase;letter-spacing:.04em;}
   .rvw-field{display:flex;flex-direction:column;gap:3px;}
   .rvw-field.rvw-wide{grid-column:1/-1;}
   .rvw-field label{color:#888;font-size:10px;}
@@ -547,29 +553,37 @@
     }
     var st = getState(el);
     var op = Math.round((parseFloat(getComputedStyle(el).opacity) || 1) * 100);
-    var html = '<h3>Thuộc tính</h3><div class="rvw-elname">' + shortName(el) + '</div><div class="rvw-fields">' +
+    // Nhóm theo section kiểu Figma sidebar (Position / Layout / Appearance / Typography)
+    var html = '<h3>Thuộc tính</h3><div class="rvw-elname">' + shortName(el) + '</div>' +
+      '<div class="rvw-section"><div class="rvw-sectitle">' + T.secPosition + '</div><div class="rvw-fields">' +
       '<div class="rvw-field"><label>X (%)</label><input id="rvw-x" type="number" step="0.5" value="' + x + '"></div>' +
       '<div class="rvw-field"><label>Y (%)</label><input id="rvw-y" type="number" step="0.5" value="' + y + '"></div>' +
+      '<div class="rvw-field rvw-wide"><label>' + T.rot + '</label><input id="rvw-rot" type="number" step="1" value="' + st.rot + '"></div>' +
+      '</div></div>' +
+      '<div class="rvw-section"><div class="rvw-sectitle">' + T.secLayout + '</div><div class="rvw-fields">' +
       '<div class="rvw-field"><label>W (%)</label><input id="rvw-w" type="number" step="0.5" value="' + w + '"></div>' +
       '<div class="rvw-field"><label>H (%)</label><input id="rvw-h" type="number" step="0.5" value="' + h + '"></div>' +
-      '<div class="rvw-field"><label>' + T.rot + '</label><input id="rvw-rot" type="number" step="1" value="' + st.rot + '"></div>' +
-      '<div class="rvw-field"><label>' + T.op + '</label><input id="rvw-op" type="number" min="0" max="100" step="5" value="' + op + '"></div>' +
+      '</div></div>' +
+      '<div class="rvw-section"><div class="rvw-sectitle">' + T.secAppearance + '</div><div class="rvw-fields">' +
+      '<div class="rvw-field rvw-wide"><label>' + T.op + '</label><input id="rvw-op" type="number" min="0" max="100" step="5" value="' + op + '"></div>' +
       '<div class="rvw-field rvw-wide rvw-btnrow">' +
       '<button id="rvw-fliph">' + T.flipH + '</button><button id="rvw-flipv">' + T.flipV + '</button>' +
-      '<button id="rvw-zup">' + T.zUp + '</button><button id="rvw-zdown">' + T.zDown + '</button></div>';
+      '<button id="rvw-zup">' + T.zUp + '</button><button id="rvw-zdown">' + T.zDown + '</button></div>' +
+      '</div></div>';
     if (isText(el)) {
       var fs = parseFloat(getComputedStyle(el).fontSize);
       var curAlign = getComputedStyle(el).textAlign;
       if (curAlign === 'start' || curAlign === '') curAlign = 'left';
-      html += '<div class="rvw-field"><label>' + T.fs + '</label><input id="rvw-fs" type="number" step="1" value="' + Math.round(fs) + '"></div>' +
-        '<div class="rvw-field"><label>' + T.align + '</label></div>' +
+      html += '<div class="rvw-section"><div class="rvw-sectitle">' + T.secTypography + '</div><div class="rvw-fields">' +
+        '<div class="rvw-field rvw-wide"><label>' + T.fs + '</label><input id="rvw-fs" type="number" step="1" value="' + Math.round(fs) + '"></div>' +
+        '<div class="rvw-field rvw-wide"><label>' + T.align + '</label></div>' +
         '<div class="rvw-field rvw-wide rvw-btnrow3">' +
         '<button id="rvw-al-left" title="' + T.alLeft + '" class="' + (curAlign === 'left' ? 'rvw-on' : '') + '">' + ICONS.alignLeft + '</button>' +
         '<button id="rvw-al-center" title="' + T.alCenter + '" class="' + (curAlign === 'center' ? 'rvw-on' : '') + '">' + ICONS.alignCenter + '</button>' +
         '<button id="rvw-al-right" title="' + T.alRight + '" class="' + (curAlign === 'right' ? 'rvw-on' : '') + '">' + ICONS.alignRight + '</button></div>' +
-        '<div class="rvw-field rvw-wide"><label>' + T.content + '</label><textarea id="rvw-text">' + el.textContent.trim() + '</textarea></div>';
+        '<div class="rvw-field rvw-wide"><label>' + T.content + '</label><textarea id="rvw-text">' + el.textContent.trim() + '</textarea></div>' +
+        '</div></div>';
     }
-    html += '</div>';
     panel.innerHTML = html;
 
     function apply(prop, cb) {
