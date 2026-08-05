@@ -1,7 +1,8 @@
 /**
  * Review overlay cho design--compose — editor chrome kiểu Figma/Canva.
- * Kích hoạt CHỈ KHI URL có "#review" (hoặc "?review"); không có cờ → no-op,
- * ảnh export qua compose-screenshot.py luôn sạch.
+ * Khi mở thường: hiện nút "Edit live" ngoài artboard để user vào editor.
+ * Khi URL có "#review" (hoặc "?review"): bật editor chrome. Ảnh export qua
+ * compose-screenshot.py chụp đúng artboard nên không dính launcher/editor UI.
  *
  * Tính năng:
  *  - Select (V): click chọn element → selection box + properties panel (X/Y/W %, font-size, nội dung)
@@ -11,8 +12,8 @@
  */
 (function () {
   'use strict';
-  if (!/[?#&]review/.test(location.search + location.hash)) return;
-  var frame = document.querySelector('.frame');
+  var wantsReview = /[?#&]review/.test(location.search + location.hash);
+  var frame = document.querySelector('[data-rvw-frame],.frame,.frame-container');
   if (!frame) return;
 
   /* ================= state ================= */
@@ -28,11 +29,15 @@
       select: 'Chọn', comment: 'Comment', snap: 'Snap', exportFb: 'Xuất comment cho AI sửa', save: 'Lưu',
       png: 'Xuất PNG', shooting: 'Đang chụp...', changes: 'thay đổi',
       props: 'Thuộc tính', layersTitle: 'Layers',
+      openEditor: 'Edit live', openEditorHint: 'Mở live editor để chỉnh chữ, kéo lớp, comment và xuất PNG.',
       emptyHint: 'Click một element trên thiết kế để chọn.<br><br>Kéo để di chuyển · mũi tên để tinh chỉnh · double-click để sửa chữ.',
       multiSel: ' elements đã chọn',
       multiHint: 'Kéo để di chuyển cả nhóm · mũi tên nudge · Delete ẩn tất cả · Shift+click để thêm/bớt · Esc bỏ chọn.',
       rot: 'Xoay (°)', op: 'Mờ (%)', fs: 'Cỡ chữ (px)', content: 'Nội dung',
       flipH: 'Lật ngang', flipV: 'Lật dọc', zUp: 'Lên trước', zDown: 'Ra sau',
+      reset: 'Reset', lockRatio: 'Khóa tỉ lệ', unlockRatio: 'Mở khóa tỉ lệ',
+      flipGroup: 'Lật', orderGroup: 'Lớp',
+      layerContainerHint: 'Đây là layer container. Chọn một item con trong Layers hoặc double-click trên canvas để sửa ảnh/chữ cụ thể.',
       align: 'Căn chữ', alLeft: 'Trái', alCenter: 'Giữa', alRight: 'Phải',
       secPosition: 'Vị trí', secLayout: 'Kích thước', secAppearance: 'Hiển thị', secTypography: 'Chữ',
       notePoint: 'Ghi chú cho vị trí này...', noteRegion: 'Ghi chú cho vùng này...',
@@ -54,11 +59,15 @@
       select: 'Select', comment: 'Comment', snap: 'Snap', exportFb: 'Export comment for AI editing', save: 'Save',
       png: 'Export PNG', shooting: 'Capturing...', changes: 'changes',
       props: 'Properties', layersTitle: 'Layers',
+      openEditor: 'Edit live', openEditorHint: 'Open the live editor to edit text, move layers, comment, and export PNG.',
       emptyHint: 'Click an element on the canvas to select it.<br><br>Drag to move · arrows to nudge · double-click to edit text.',
       multiSel: ' elements selected',
       multiHint: 'Drag to move the group · arrows to nudge · Delete hides all · Shift+click to add/remove · Esc to deselect.',
       rot: 'Rotate (°)', op: 'Opacity (%)', fs: 'Font size (px)', content: 'Content',
       flipH: 'Flip H', flipV: 'Flip V', zUp: 'Forward', zDown: 'Backward',
+      reset: 'Reset', lockRatio: 'Lock ratio', unlockRatio: 'Unlock ratio',
+      flipGroup: 'Flip', orderGroup: 'Layer',
+      layerContainerHint: 'This is a layer container. Select a child item in Layers or double-click the canvas to edit a specific image/text element.',
       align: 'Text align', alLeft: 'Left', alCenter: 'Center', alRight: 'Right',
       secPosition: 'Position', secLayout: 'Layout', secAppearance: 'Appearance', secTypography: 'Typography',
       notePoint: 'Note for this spot...', noteRegion: 'Note for this region...',
@@ -82,12 +91,51 @@
   if (!LANGS[lang]) lang = 'en';
   var T = LANGS[lang];
 
+  function installReviewLauncher() {
+    if (document.querySelector('.rvw-open-editor')) return;
+    var style = document.createElement('style');
+    style.className = 'rvw-launcher-style';
+    style.textContent = '.rvw-open-editor{position:fixed;z-index:99990;display:flex;align-items:center;gap:8px;' +
+      'height:36px;padding:0 12px;border:none;border-radius:8px;background:#0d99ff;color:#fff;' +
+      'font:700 12px Inter,Segoe UI,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.22);cursor:pointer}' +
+      '.rvw-open-editor:hover{background:#0b87e0}.rvw-open-editor svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}' +
+      '@media (max-width:1199px){.rvw-open-editor{display:none}}@media print{.rvw-open-editor{display:none}}';
+    document.head.appendChild(style);
+    var btn = document.createElement('button');
+    btn.className = 'rvw-open-editor';
+    btn.type = 'button';
+    btn.title = T.openEditorHint;
+    btn.innerHTML = '<svg viewBox="0 0 16 16"><path d="M3 13h3.5L13 6.5 9.5 3 3 9.5z"/><path d="M8.8 3.7l3.5 3.5"/></svg><span>' + T.openEditor + '</span>';
+    function place() {
+      var r = frame.getBoundingClientRect();
+      btn.style.left = Math.round(r.right + 16) + 'px';
+      btn.style.top = Math.round(Math.max(16, r.top + 16)) + 'px';
+    }
+    btn.onclick = function () {
+      if (location.hash !== '#review') location.hash = 'review';
+      location.reload();
+    };
+    document.body.appendChild(btn);
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+  }
+  if (!wantsReview) {
+    installReviewLauncher();
+    return;
+  }
+
   /* ===== Hit-testing tổng quát — overlay KHÔNG phụ thuộc tên class của design =====
      (fix 2026-08-05: design ngoài template gốc như pawos có class tùy ý → selector
      hard-code làm click xuyên qua và không kéo được element trong group lạ) */
   var OVERLAY_UI = '.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-pin,.rvw-region,.rvw-selbox,.rvw-hoverbox,.rvw-guide,.rvw-marquee';
   function classOf(el) { return (el.getAttribute && el.getAttribute('class')) || ''; }
   function isLayerEl(el) { return /(^| )layer-/.test(classOf(el)); }
+  function isPassThroughEl(el) {
+    if (!el || !el.closest) return false;
+    if (el.closest('.layer-adjust,[data-rvw-pass-through],[data-rvw-click-through]')) return true;
+    return /(^| )(adjust|tint|vignette|grain|filter|color-wash)( |$)/.test(classOf(el));
+  }
   function inDesign(el) {
     return el && el.nodeType === 1 && el !== frame && frame.contains(el) &&
       classOf(el).indexOf('rvw-') < 0 && !(el.closest && el.closest(OVERLAY_UI));
@@ -110,7 +158,7 @@
     var fallback = null;
     for (var i = 0; i < list.length; i++) {
       var el = list[i];
-      if (!inDesign(el) || isLayerEl(el)) continue;
+      if (!inDesign(el) || isLayerEl(el) || isPassThroughEl(el)) continue;
       if (!fallback) fallback = el;
       if (isSolid(el)) return el;
     }
@@ -177,9 +225,12 @@
   .rvw-panel{position:fixed;top:48px;right:0;bottom:0;width:248px;z-index:99999;background:#2c2c2c;
     border-left:1px solid #444;color:#e0e0e0;font-size:12px;overflow-y:auto;
     scrollbar-width:thin;scrollbar-color:#4a4a4a transparent;}
-  .rvw-panel-resize{position:fixed;top:48px;bottom:0;width:8px;z-index:100000;cursor:ew-resize;
-    background:transparent;}
+  .rvw-panel-resize{position:fixed;top:48px;bottom:0;width:10px;z-index:100000;cursor:ew-resize;
+    background:linear-gradient(90deg,rgba(13,153,255,.28),transparent 45%);}
+  .rvw-panel-resize::after{content:'';position:absolute;left:2px;top:50%;width:3px;height:44px;
+    margin-top:-22px;border-radius:3px;background:#5b5b5b;}
   .rvw-panel-resize:hover,.rvw-panel-resize.rvw-dragging{background:rgba(13,153,255,.4);}
+  .rvw-panel-resize:hover::after,.rvw-panel-resize.rvw-dragging::after{background:#0d99ff;}
   .rvw-panel h3{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;
     padding:14px 14px 6px;margin:0;}
   .rvw-panel .rvw-empty{padding:8px 14px;color:#777;line-height:1.5;}
@@ -194,9 +245,14 @@
   .rvw-field input,.rvw-field textarea{background:#1e1e1e;border:1px solid #444;border-radius:4px;color:#e0e0e0;
     padding:5px 7px;font:400 12px Inter,'Segoe UI',sans-serif;outline:none;
     width:100%;min-width:0;box-sizing:border-box;}
+  .rvw-field input[type=number]::-webkit-outer-spin-button,
+  .rvw-field input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .rvw-field input[type=number]{appearance:textfield;-moz-appearance:textfield;}
+  .rvw-field input[type=range]{padding:0;border:none;background:transparent;accent-color:#0d99ff;}
   .rvw-field input:focus,.rvw-field textarea:focus{border-color:#0d99ff;}
   .rvw-field textarea{resize:vertical;min-height:56px;line-height:1.4;}
-  .rvw-elname{padding:10px 14px 0;font-weight:600;color:#fff;font-size:12px;word-break:break-all;}
+  .rvw-elname{padding:10px 14px 0;font-weight:600;color:#fff;font-size:12px;word-break:break-word;}
+  .rvw-elmeta{padding:4px 14px 10px;color:#8f8f8f;font-size:10px;line-height:1.4;word-break:break-word;}
   .rvw-layers{position:fixed;top:48px;left:0;bottom:0;width:220px;z-index:99999;background:#2c2c2c;
     border-right:1px solid #444;color:#e0e0e0;overflow-y:auto;font-size:11px;
     scrollbar-width:thin;scrollbar-color:#4a4a4a transparent;}
@@ -225,6 +281,8 @@
   .rvw-lrow.rvw-lhidden .rvw-lname{opacity:.4;}
   .rvw-lrow.rvw-lhidden .rvw-eye svg{stroke:#777;}
   .rvw-selbox{position:fixed;z-index:99998;pointer-events:none;border:1.5px solid #0d99ff;}
+  .rvw-selbox.rvw-selbox-layer{border-style:dashed;border-color:#888;}
+  .rvw-selbox.rvw-selbox-layer .rvw-h,.rvw-selbox.rvw-selbox-layer .rvw-rotline{display:none;}
   .rvw-selbox.rvw-selbox-extra{border-width:1px;border-style:solid;}
   .rvw-selbox .rvw-h{position:absolute;width:8px;height:8px;background:#fff;border:1.5px solid #0d99ff;border-radius:1px;}
   .rvw-selbox .rvw-h.nw{left:-5px;top:-5px;}.rvw-selbox .rvw-h.ne{right:-5px;top:-5px;}
@@ -241,6 +299,20 @@
   .rvw-btnrow3 button:hover,.rvw-btnrow4 button:hover{background:#454749;}
   .rvw-btnrow3 button.rvw-on,.rvw-btnrow4 button.rvw-on{background:#0d99ff;color:#fff;}
   .rvw-btnrow3 button svg,.rvw-btnrow4 button svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;}
+  .rvw-control-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .rvw-control-group{display:flex;flex-direction:column;gap:5px;min-width:0;}
+  .rvw-control-label{color:#888;font-size:10px;}
+  .rvw-range-row{display:grid;grid-template-columns:minmax(0,1fr) 58px;gap:8px;align-items:center;}
+  .rvw-unit-wrap{position:relative;}
+  .rvw-unit-wrap input{padding-right:24px;}
+  .rvw-unit{position:absolute;right:7px;top:50%;transform:translateY(-50%);color:#777;font-size:10px;pointer-events:none;}
+  .rvw-step-row{display:grid;grid-template-columns:32px minmax(0,1fr) 32px 32px;gap:6px;align-items:center;}
+  .rvw-step-row button,.rvw-mini-btn{display:inline-flex;align-items:center;justify-content:center;
+    height:28px;border:none;border-radius:5px;background:#3a3a3a;color:#ddd;font:600 12px Inter,'Segoe UI',sans-serif;cursor:pointer;}
+  .rvw-step-row button:hover,.rvw-mini-btn:hover{background:#454749;}
+  .rvw-mini-btn.rvw-on{background:#0d99ff;color:#fff;}
+  .rvw-mini-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .rvw-layout-head{display:grid;grid-template-columns:minmax(0,1fr) 32px;gap:8px;align-items:end;}
   .rvw-hoverbox{position:fixed;z-index:99997;pointer-events:none;border:1px solid rgba(13,153,255,.55);}
   .rvw-guide{position:fixed;z-index:99998;background:#f24822;pointer-events:none;display:none;}
   .rvw-guide.rvw-gv{width:1px;}
@@ -274,7 +346,12 @@
      design file đặt pointer-events:none trên layer-content */
   body.rvw-canvas .frame{pointer-events:auto !important;}
   body.rvw-canvas .frame :not([class*="rvw-"]){pointer-events:auto !important;}
-  body.rvw-canvas .layer-adjust,body.rvw-canvas .layer-adjust *{pointer-events:none !important;}
+  body.rvw-canvas .layer-adjust,body.rvw-canvas .layer-adjust *,
+  body.rvw-canvas .adjust,body.rvw-canvas .tint,body.rvw-canvas .vignette,body.rvw-canvas .grain,
+  body.rvw-canvas .filter,body.rvw-canvas .color-wash,
+  body.rvw-canvas [data-rvw-pass-through],body.rvw-canvas [data-rvw-click-through]{
+    pointer-events:none !important;
+  }
   body.rvw-canvas .frame{user-select:none;}
   body.rvw-canvas .frame img{-webkit-user-drag:none;}`;
   var st = document.createElement('style');
@@ -298,7 +375,9 @@
     flipH: '<svg viewBox="0 0 16 16"><path d="M8 1v14" stroke-dasharray="2 2"/><path d="M4.5 5 2 8l2.5 3M11.5 5 14 8l-2.5 3"/></svg>',
     flipV: '<svg viewBox="0 0 16 16"><path d="M1 8h14" stroke-dasharray="2 2"/><path d="M5 4.5 8 2l3 2.5M5 11.5 8 14l3-2.5"/></svg>',
     layerUp: '<svg viewBox="0 0 16 16"><rect x="4" y="6" width="8" height="8" rx="1"/><path d="M8 4V1M6 2.5 8 .5l2 2"/></svg>',
-    layerDown: '<svg viewBox="0 0 16 16"><rect x="4" y="2" width="8" height="8" rx="1"/><path d="M8 12v3M6 13.5 8 15.5l2-2"/></svg>'
+    layerDown: '<svg viewBox="0 0 16 16"><rect x="4" y="2" width="8" height="8" rx="1"/><path d="M8 12v3M6 13.5 8 15.5l2-2"/></svg>',
+    lock: '<svg viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2"/><path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7"/></svg>',
+    unlock: '<svg viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2"/><path d="M5.5 7V5.2a2.5 2.5 0 0 1 4.7-1.2"/></svg>'
   };
   // Cờ SVG (Windows không render emoji cờ)
   var FLAGS = {
@@ -384,6 +463,7 @@
   // Node đáng hiện trong tree: media, có chữ trực tiếp, hoặc chứa media/chữ bên trong
   function isInterestingNode(el) {
     if (classOf(el).indexOf('rvw-') >= 0) return false;
+    if (isPassThroughEl(el)) return true;
     if (/^(IMG|SVG|VIDEO|CANVAS|PICTURE)$/i.test(el.tagName)) return true;
     return hasDirectText(el);
   }
@@ -397,6 +477,8 @@
   document.body.appendChild(layersPanel);
 
   function layerName(el) {
+    var adj = adjustmentName(el);
+    if (adj) return adj;
     for (var i = 0; i < el.classList.length; i++) {
       if (LAYER_NAMES[el.classList[i]]) return LAYER_NAMES[el.classList[i]];
     }
@@ -539,8 +621,47 @@
     return base;
   }
   function shortName(el) {
+    return friendlyName(el);
+  }
+  function explicitName(el) {
+    return el.getAttribute('data-rvw-name') || el.getAttribute('aria-label') ||
+      el.getAttribute('alt') || el.getAttribute('title') || '';
+  }
+  function adjustmentName(el) {
+    if (!isPassThroughEl(el)) return '';
+    var pc = classOf(el);
+    if (/(^| )tint( |$)/.test(pc)) return 'Tint adjustment';
+    if (/(^| )vignette( |$)/.test(pc)) return 'Vignette adjustment';
+    if (/(^| )grain( |$)/.test(pc)) return 'Grain adjustment';
+    if (/(^| )filter( |$)/.test(pc)) return 'Filter adjustment';
+    if (/(^| )color-wash( |$)/.test(pc)) return 'Color wash adjustment';
+    return 'Adjustment layer';
+  }
+  function friendlyName(el) {
+    var named = explicitName(el);
+    if (named) return named.length > 42 ? named.slice(0, 42) + '…' : named;
+    if (isLayerEl(el)) return layerName(el);
+    var adj = adjustmentName(el);
+    if (adj) return adj;
+    if (/^IMG$/i.test(el.tagName)) return el.getAttribute('src') ? 'Image asset' : 'Image';
+    if (/^(SVG|CANVAS|VIDEO|PICTURE)$/i.test(el.tagName)) return el.tagName.toLowerCase() + ' asset';
+    if (isTextEl(el)) {
+      var txt = el.textContent.trim().replace(/\s+/g, ' ');
+      return txt ? (txt.length > 42 ? txt.slice(0, 42) + '…' : txt) : 'Text';
+    }
+    var cls = Array.prototype.slice.call(el.classList || []).filter(function (c) {
+      return c.indexOf('rvw-') !== 0 && c.indexOf('layer-') !== 0;
+    });
+    if (cls.some(function (c) { return /title|heading|headline/i.test(c); })) return 'Title text';
+    if (cls.some(function (c) { return /subtitle|subhead|caption|body/i.test(c); })) return 'Body text';
+    if (cls.some(function (c) { return /cta|button|badge|chip/i.test(c); })) return 'CTA / badge';
+    if (cls.some(function (c) { return /logo|brand/i.test(c); })) return 'Logo';
+    if (cls.some(function (c) { return /slot|art|asset|product|hero/i.test(c); })) return 'Art asset';
+    return el.tagName.toLowerCase() + ' element';
+  }
+  function debugName(el) {
     var s = selectorOf(el);
-    return s.length > 34 ? s.slice(0, 34) + '…' : s;
+    return s.length > 58 ? s.slice(0, 58) + '…' : s;
   }
   function frameRect() { return frame.getBoundingClientRect(); }
   function pctX(px) { return (px / frameRect().width * 100); }
@@ -576,9 +697,13 @@
     if (selected && document.contains(selected)) {
       var r = selected.getBoundingClientRect();
       selbox.style.display = 'block';
+      selbox.classList.toggle('rvw-selbox-layer', isLayerEl(selected));
       selbox.style.left = r.left + 'px'; selbox.style.top = r.top + 'px';
       selbox.style.width = r.width + 'px'; selbox.style.height = r.height + 'px';
-    } else selbox.style.display = 'none';
+    } else {
+      selbox.style.display = 'none';
+      selbox.classList.remove('rvw-selbox-layer');
+    }
     // Box phụ cho các element chọn thêm (viền mảnh, không handle)
     // Guard: refreshBoxes được gọi từ fitZoom() lúc init, TRƯỚC khi extraBoxes kịp gán []
     if (!extraBoxes) extraBoxes = [];
@@ -613,31 +738,48 @@
     }
     var st = getState(el);
     var op = Math.round((parseFloat(getComputedStyle(el).opacity) || 1) * 100);
+    if (isLayerEl(el)) {
+      panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-elname">' + friendlyName(el) + '</div>' +
+        '<div class="rvw-elmeta">' + T.layerContainerHint + '<br>' + debugName(el) + '</div>';
+      return;
+    }
     // Nhóm theo section kiểu Figma sidebar (Position / Layout / Appearance / Typography)
-    var html = '<h3>Thuộc tính</h3><div class="rvw-elname">' + shortName(el) + '</div>' +
+    if (st.ratioLocked === undefined) st.ratioLocked = true;
+    var html = '<h3>' + T.props + '</h3><div class="rvw-elname">' + shortName(el) + '</div>' +
+      '<div class="rvw-elmeta">' + debugName(el) + '</div>' +
       '<div class="rvw-section"><div class="rvw-sectitle">' + T.secPosition + '</div><div class="rvw-fields">' +
-      '<div class="rvw-field"><label>X (%)</label><input id="rvw-x" type="number" step="0.5" value="' + x + '"></div>' +
-      '<div class="rvw-field"><label>Y (%)</label><input id="rvw-y" type="number" step="0.5" value="' + y + '"></div>' +
-      '<div class="rvw-field rvw-wide"><label>' + T.rot + '</label><input id="rvw-rot" type="number" step="1" value="' + st.rot + '"></div>' +
+      '<div class="rvw-field"><label>X</label><div class="rvw-unit-wrap"><input id="rvw-x" type="number" step="0.5" value="' + x + '"><span class="rvw-unit">%</span></div></div>' +
+      '<div class="rvw-field"><label>Y</label><div class="rvw-unit-wrap"><input id="rvw-y" type="number" step="0.5" value="' + y + '"><span class="rvw-unit">%</span></div></div>' +
+      '<div class="rvw-field rvw-wide"><label>' + T.rot + '</label><div class="rvw-step-row">' +
+      '<button id="rvw-rot-dec" title="-15">-15</button><div class="rvw-unit-wrap"><input id="rvw-rot" type="number" step="1" value="' + st.rot + '"><span class="rvw-unit">deg</span></div>' +
+      '<button id="rvw-rot-inc" title="+15">+15</button><button id="rvw-rot-reset" title="' + T.reset + '">0</button></div></div>' +
       '</div></div>' +
       '<div class="rvw-section"><div class="rvw-sectitle">' + T.secLayout + '</div><div class="rvw-fields">' +
-      '<div class="rvw-field"><label>W (%)</label><input id="rvw-w" type="number" step="0.5" value="' + w + '"></div>' +
-      '<div class="rvw-field"><label>H (%)</label><input id="rvw-h" type="number" step="0.5" value="' + h + '"></div>' +
+      '<div class="rvw-field rvw-wide"><div class="rvw-layout-head"><label>W / H</label><button id="rvw-ratio-lock" class="rvw-mini-btn ' + (st.ratioLocked ? 'rvw-on' : '') + '" title="' + (st.ratioLocked ? T.unlockRatio : T.lockRatio) + '">' + (st.ratioLocked ? ICONS.lock : ICONS.unlock) + '</button></div></div>' +
+      '<div class="rvw-field"><label>W</label><div class="rvw-unit-wrap"><input id="rvw-w" type="number" min="0.1" step="0.5" value="' + w + '"><span class="rvw-unit">%</span></div></div>' +
+      '<div class="rvw-field"><label>H</label><div class="rvw-unit-wrap"><input id="rvw-h" type="number" min="0.1" step="0.5" value="' + h + '"><span class="rvw-unit">%</span></div></div>' +
       '</div></div>' +
       '<div class="rvw-section"><div class="rvw-sectitle">' + T.secAppearance + '</div><div class="rvw-fields">' +
-      '<div class="rvw-field rvw-wide"><label>' + T.op + '</label><input id="rvw-op" type="number" min="0" max="100" step="5" value="' + op + '"></div>' +
-      '<div class="rvw-field rvw-wide rvw-btnrow4">' +
-      '<button id="rvw-fliph" title="' + T.flipH + '">' + ICONS.flipH + '</button>' +
-      '<button id="rvw-flipv" title="' + T.flipV + '">' + ICONS.flipV + '</button>' +
+      '<div class="rvw-field rvw-wide"><label>' + T.op + '</label><div class="rvw-range-row">' +
+      '<input id="rvw-op-range" type="range" min="0" max="100" step="1" value="' + op + '">' +
+      '<div class="rvw-unit-wrap"><input id="rvw-op" type="number" min="0" max="100" step="5" value="' + op + '"><span class="rvw-unit">%</span></div></div></div>' +
+      '<div class="rvw-field rvw-wide"><div class="rvw-control-pair">' +
+      '<div class="rvw-control-group"><div class="rvw-control-label">' + T.flipGroup + '</div><div class="rvw-btnrow2 rvw-btnrow4">' +
+      '<button id="rvw-fliph" title="' + T.flipH + '" class="' + (st.fx ? 'rvw-on' : '') + '">' + ICONS.flipH + '</button>' +
+      '<button id="rvw-flipv" title="' + T.flipV + '" class="' + (st.fy ? 'rvw-on' : '') + '">' + ICONS.flipV + '</button></div></div>' +
+      '<div class="rvw-control-group"><div class="rvw-control-label">' + T.orderGroup + '</div><div class="rvw-btnrow2 rvw-btnrow4">' +
       '<button id="rvw-zup" title="' + T.zUp + '">' + ICONS.layerUp + '</button>' +
-      '<button id="rvw-zdown" title="' + T.zDown + '">' + ICONS.layerDown + '</button></div>' +
+      '<button id="rvw-zdown" title="' + T.zDown + '">' + ICONS.layerDown + '</button></div></div></div></div>' +
       '</div></div>';
     if (isText(el)) {
       var fs = parseFloat(getComputedStyle(el).fontSize);
+      if (st.fsBase === undefined) st.fsBase = Math.round(fs);
       var curAlign = getComputedStyle(el).textAlign;
       if (curAlign === 'start' || curAlign === '') curAlign = 'left';
       html += '<div class="rvw-section"><div class="rvw-sectitle">' + T.secTypography + '</div><div class="rvw-fields">' +
-        '<div class="rvw-field rvw-wide"><label>' + T.fs + '</label><input id="rvw-fs" type="number" step="1" value="' + Math.round(fs) + '"></div>' +
+        '<div class="rvw-field rvw-wide"><label>' + T.fs + '</label><div class="rvw-step-row">' +
+        '<button id="rvw-fs-dec" title="-1">-</button><div class="rvw-unit-wrap"><input id="rvw-fs" type="number" min="6" step="1" value="' + Math.round(fs) + '"><span class="rvw-unit">px</span></div>' +
+        '<button id="rvw-fs-inc" title="+1">+</button><button id="rvw-fs-reset" title="' + T.reset + '">R</button></div></div>' +
         '<div class="rvw-field rvw-wide"><label>' + T.align + '</label></div>' +
         '<div class="rvw-field rvw-wide rvw-btnrow3">' +
         '<button id="rvw-al-left" title="' + T.alLeft + '" class="' + (curAlign === 'left' ? 'rvw-on' : '') + '">' + ICONS.alignLeft + '</button>' +
@@ -647,6 +789,17 @@
         '</div></div>';
     }
     panel.innerHTML = html;
+    Array.prototype.forEach.call(panel.querySelectorAll('input,textarea'), function (inp) {
+      inp.dataset.rvwInitial = inp.value;
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' && inp.tagName !== 'TEXTAREA') inp.blur();
+        if (ev.key === 'Escape') {
+          inp.value = inp.dataset.rvwInitial || '';
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+          inp.blur();
+        }
+      });
+    });
 
     function apply(prop, cb) {
       var inp = document.getElementById(prop);
@@ -660,26 +813,73 @@
     apply('rvw-y', function () { moveTo(null, parseFloat(this.value)); }.bind(document.getElementById('rvw-y')));
     apply('rvw-w', function () {
       // % nhập theo khung → quy về px layout để đúng với mọi element con
-      el.style.width = (parseFloat(this.value) / 100 * frame.offsetWidth).toFixed(0) + 'px';
+      var wp = Math.max(0.1, parseFloat(this.value) || 0.1);
+      el.style.width = (wp / 100 * frame.offsetWidth).toFixed(0) + 'px';
+      if (getState(el).ratioLocked && r.height) {
+        var hp = (wp / 100 * frame.offsetWidth / (r.width / r.height)) / frame.offsetHeight * 100;
+        el.style.height = (hp / 100 * frame.offsetHeight).toFixed(0) + 'px';
+        var hi = document.getElementById('rvw-h');
+        if (hi) hi.value = hp.toFixed(1);
+      }
       recordMove(el); refreshBoxes();
     }.bind(document.getElementById('rvw-w')));
     apply('rvw-h', function () {
-      el.style.height = (parseFloat(this.value) / 100 * frame.offsetHeight).toFixed(0) + 'px';
+      var hp = Math.max(0.1, parseFloat(this.value) || 0.1);
+      el.style.height = (hp / 100 * frame.offsetHeight).toFixed(0) + 'px';
+      if (getState(el).ratioLocked && r.height) {
+        var wp = (hp / 100 * frame.offsetHeight * (r.width / r.height)) / frame.offsetWidth * 100;
+        el.style.width = (wp / 100 * frame.offsetWidth).toFixed(0) + 'px';
+        var wi = document.getElementById('rvw-w');
+        if (wi) wi.value = wp.toFixed(1);
+      }
       recordMove(el); refreshBoxes();
     }.bind(document.getElementById('rvw-h')));
     apply('rvw-rot', function () {
       getState(el).rot = parseFloat(this.value) || 0;
       applyTransform(el); refreshBoxes();
     }.bind(document.getElementById('rvw-rot')));
+    function setRotation(v) {
+      var inp = document.getElementById('rvw-rot');
+      if (!inp) return;
+      inp.value = v;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    var rotDec = document.getElementById('rvw-rot-dec');
+    if (rotDec) rotDec.onclick = function () { setRotation((parseFloat(document.getElementById('rvw-rot').value) || 0) - 15); };
+    var rotInc = document.getElementById('rvw-rot-inc');
+    if (rotInc) rotInc.onclick = function () { setRotation((parseFloat(document.getElementById('rvw-rot').value) || 0) + 15); };
+    var rotReset = document.getElementById('rvw-rot-reset');
+    if (rotReset) rotReset.onclick = function () { setRotation(0); };
+    var ratioBtn = document.getElementById('rvw-ratio-lock');
+    if (ratioBtn) ratioBtn.onclick = function () {
+      var s = getState(el);
+      s.ratioLocked = !s.ratioLocked;
+      ratioBtn.classList.toggle('rvw-on', s.ratioLocked);
+      ratioBtn.innerHTML = s.ratioLocked ? ICONS.lock : ICONS.unlock;
+      ratioBtn.title = s.ratioLocked ? T.unlockRatio : T.lockRatio;
+    };
     apply('rvw-op', function () {
-      var v = Math.min(100, Math.max(0, parseFloat(this.value) || 0)) / 100;
+      var pct = Math.min(100, Math.max(0, parseFloat(this.value) || 0));
+      this.value = pct;
+      var v = pct / 100;
+      var range = document.getElementById('rvw-op-range');
+      if (range) range.value = pct;
       el.style.opacity = v;
       recordProp(el, 'opacity', v); refreshBoxes();
     }.bind(document.getElementById('rvw-op')));
+    var opRange = document.getElementById('rvw-op-range');
+    if (opRange) opRange.addEventListener('input', function () {
+      var num = document.getElementById('rvw-op');
+      if (num) num.value = this.value;
+      if (!this.dataset.rvwPushed) { pushUndo(el); this.dataset.rvwPushed = '1'; }
+      var v = Math.min(100, Math.max(0, parseFloat(this.value) || 0)) / 100;
+      el.style.opacity = v;
+      recordProp(el, 'opacity', v); refreshBoxes();
+    });
     var bh = document.getElementById('rvw-fliph');
-    if (bh) bh.onclick = function () { pushUndo(el); var s = getState(el); s.fx = !s.fx; applyTransform(el); refreshBoxes(); };
+    if (bh) bh.onclick = function () { pushUndo(el); var s = getState(el); s.fx = !s.fx; bh.classList.toggle('rvw-on', s.fx); applyTransform(el); refreshBoxes(); };
     var bv = document.getElementById('rvw-flipv');
-    if (bv) bv.onclick = function () { pushUndo(el); var s = getState(el); s.fy = !s.fy; applyTransform(el); refreshBoxes(); };
+    if (bv) bv.onclick = function () { pushUndo(el); var s = getState(el); s.fy = !s.fy; bv.classList.toggle('rvw-on', s.fy); applyTransform(el); refreshBoxes(); };
     var bu = document.getElementById('rvw-zup');
     if (bu) bu.onclick = function () {
       pushUndo(el);
@@ -693,10 +893,24 @@
       el.style.zIndex = z - 1; recordProp(el, 'zIndex', z - 1);
     };
     apply('rvw-fs', function () {
-      el.style.fontSize = parseInt(this.value, 10) + 'px';
-      recordProp(el, 'fontSize', parseInt(this.value, 10) + 'px');
+      var px = Math.max(6, parseInt(this.value, 10) || 6);
+      this.value = px;
+      el.style.fontSize = px + 'px';
+      recordProp(el, 'fontSize', px + 'px');
       refreshBoxes();
     }.bind(document.getElementById('rvw-fs')));
+    function setFontSize(v) {
+      var inp = document.getElementById('rvw-fs');
+      if (!inp) return;
+      inp.value = Math.max(6, Math.round(v));
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    var fsDec = document.getElementById('rvw-fs-dec');
+    if (fsDec) fsDec.onclick = function () { setFontSize((parseInt(document.getElementById('rvw-fs').value, 10) || st.fsBase || 12) - 1); };
+    var fsInc = document.getElementById('rvw-fs-inc');
+    if (fsInc) fsInc.onclick = function () { setFontSize((parseInt(document.getElementById('rvw-fs').value, 10) || st.fsBase || 12) + 1); };
+    var fsReset = document.getElementById('rvw-fs-reset');
+    if (fsReset) fsReset.onclick = function () { setFontSize(st.fsBase || Math.round(fs)); };
     ['left', 'center', 'right'].forEach(function (al) {
       var b = document.getElementById('rvw-al-' + al);
       if (!b) return;
@@ -979,6 +1193,7 @@
     if (spaceDown || e.button === 1) return; // đang pan canvas
     if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note')) return;
     if (e.target.classList.contains('rot')) {
+      if (!selected || isLayerEl(selected)) return;
       e.preventDefault();
       pushUndo(selected);
       var rr = selected.getBoundingClientRect();
@@ -986,6 +1201,7 @@
       return;
     }
     if (e.target.classList.contains('se')) {
+      if (!selected || isLayerEl(selected)) return;
       e.preventDefault();
       pushUndo(selected);
       ensurePositioned(selected);

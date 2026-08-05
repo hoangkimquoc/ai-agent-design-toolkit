@@ -1,10 +1,10 @@
 ---
-description: Orchestrator thiết kế ảnh truyền thông 3 lớp — route theo user story, gen AI (backend bất kỳ) + tách nền (rmbg-cli) + design--compose (ghép HTML, xuất PNG)
+description: Orchestrator thiết kế ảnh truyền thông 3 lớp — route theo user story, gọi design--cover-image (gen AI) + auto--media (tách nền) + design--compose (ghép HTML, xuất PNG)
 ---
 
 # Design Social / Web — Orchestrator
 
-Quy trình designer phân lớp: **Nền (AI gen) → Đồ họa/Element (AI gen + tách nền) → Chữ & CTA (HTML)** → chụp Chrome headless ra PNG đúng pixel. Workflow này KHÔNG chứa logic kỹ thuật — chỉ thu thập thông tin, route đúng điểm vào, và gọi skill.
+Quy trình designer phân lớp: **Nền (AI gen) → Đồ họa/Element (AI gen + tách nền) → Chữ & CTA (HTML)** → mở live editor cho user chỉnh trực tiếp → user tự Lưu/Xuất PNG khi chốt. Workflow này KHÔNG chứa logic kỹ thuật — chỉ thu thập thông tin, route đúng điểm vào, và gọi skill.
 
 ## Kích hoạt
 
@@ -30,25 +30,25 @@ Chỉ skip hỏi khi user đã cung cấp đủ hoặc bảo "tự quyết/làm 
 | Đã có đủ asset (nền + element + logo) | C → D |
 | Chỉ đổi text/CTA trên thiết kế đã làm | Mở lại `design-{slug}.html` cũ → sửa lớp 3 → D (không tốn lượt gen AI) |
 | Bộ đa kênh cùng nội dung | A → B → C một lần, D lặp theo từng aspect |
-| Chỉ cần ảnh minh họa nghệ thuật nguyên khối, không chữ HTML | Chỉ A (gen AI thuần, dừng ở đó) |
+| Chỉ cần ảnh minh họa nghệ thuật nguyên khối, không chữ HTML | Chỉ A (`design--cover-image` thuần, dừng ở đó) |
 
 ## Các bước pipeline
 
-### A — Gen nền (backend gen ảnh bất kỳ: Codex CLI, Imagen, DALL·E...)
+### A — Gen nền (skill `design--cover-image`)
 - Bắt buộc `--text none` (ảnh không chứa chữ AI), `--aspect` khớp tỉ lệ đã chốt.
 - Chèn **art_direction block** của style đã chọn (từ `style-registry.json`) vào prompt để nền và element đồng bộ chất liệu.
 - Lưu: `<output-dir>/assets/bg-{slug}.png`.
 
-### B — Gen element + tách nền (backend gen ảnh + rmbg-cli)
+### B — Gen element + tách nền (skill `design--cover-image` + `auto--media`)
 - Chỉ chạy khi thiết kế cần element rời (linh vật, sản phẩm, icon). Prompt: chủ thể đơn lẻ, "isolated on solid plain background", cùng art_direction block.
-- Tách nền bằng `rmbg-cli` (`npm i -g rmbg-cli`) → PNG trong suốt `assets/element-{slug}.png`.
+- Tách nền bằng RMBG (`auto--media`) → PNG trong suốt `assets/element-{slug}.png`.
 - Cạnh mềm (tóc/khói/glow) tách xấu → gen lại với nền phẳng hơn, tối đa 2 vòng rồi hỏi user.
 
 ### C — Ghép lớp (skill `design--compose`)
-- Copy template → `design-{slug}.html`, set aspect + style, chèn 3 lớp, bật scrim nếu nền nhiễu. Theo đúng 3 nguyên tắc cứng trong SKILL.md của `design--compose`.
+- Copy template → `design-{slug}.html`, set aspect + style, chèn 3 lớp, bật scrim nếu nền nhiễu. Giữ `review-overlay.js` trong output để HTML mở thường có nút **Edit live** ngoài artboard. Theo đúng 3 nguyên tắc cứng trong SKILL.md của `design--compose`.
 
 ### D — Review & chốt
-- Khởi động review-server + mở overlay cho user (SKILL.md `design--compose` Bước 3.5) — **KHÔNG giao PNG mỗi vòng**, browser là render sống.
+- Khởi động review-server + mở overlay cho user bằng `open-review.py` (SKILL.md `design--compose` Bước 3.5) — **KHÔNG giao PNG mỗi vòng**, browser là render sống. Không chỉ gửi đường dẫn HTML rồi để user tự mò.
 - Claude tự nghiệm thu bằng vision (chụp bản tạm nội bộ): dấu tiếng Việt, tương phản, element không đè chữ, grid thẳng.
 - Vòng lặp: user chỉnh trực tiếp trên overlay → **Lưu / Xuất PNG tại chỗ (0 token)**; chỉ gửi feedback JSON khi cần Claude thiết kế tiếp (bố cục lớn, gen asset mới, xử lý comment).
 - Chốt: user bấm Xuất PNG → `<design>-final.png` + source HTML tự đồng bộ.

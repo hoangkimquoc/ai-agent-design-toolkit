@@ -11,6 +11,17 @@ description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG tr
 
 Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh chụp, logo có sẵn) và ghép thành ảnh hoàn chỉnh. Không tự gen ảnh AI — việc đó thuộc `design--cover-image`. Có thể dùng lẻ hoặc được orchestrate bởi workflow `design-compose-pipeline`.
 
+## User flow mặc định (đừng bắt user hiểu kỹ thuật)
+
+Output của skill là **một file HTML sống**, không phải chỉ là PNG:
+
+1. Agent tạo `design-{slug}.html` từ template và nhúng sẵn live editor.
+2. Agent tự mở bằng `open-review.py` ngay sau khi dựng xong.
+3. User chỉnh trực tiếp trong browser: kéo lớp, sửa chữ, chỉnh opacity, comment.
+4. User bấm **Lưu** hoặc **Xuất PNG** trong editor; chỉ gửi feedback JSON khi cần agent thiết kế tiếp.
+
+HTML output mở thường phải có nút **Edit live** ngoài artboard để user tự quay lại editor sau này. Nút này là editor chrome, không phải design layer, và không được lọt vào PNG export.
+
 ## Ba nguyên tắc cứng (không thương lượng)
 
 1. **Layering** — không bao giờ trộn Nền, Đồ họa, Chữ vào 1 khối:
@@ -68,7 +79,7 @@ python .agent/skills/design--compose/scripts/fetch-fonts.py \
 └── {slug}-{aspect}.png  # output
 ```
 
-1. Copy `templates/social-frame.html` → `design-{slug}.html`.
+1. Copy `templates/social-frame.html` → `design-{slug}.html`. Giữ nguyên script `review-overlay.js` ở cuối file để HTML tự có nút **Edit live** khi mở thường và editor khi mở với `#review`.
 2. Copy asset user cung cấp vào `assets/` (đường dẫn tương đối từ file HTML).
 
 ## Bước 2 — Ghép lớp (sửa trực tiếp file HTML)
@@ -89,8 +100,8 @@ python .agent/skills/design--compose/scripts/fetch-fonts.py \
    **Asset có sẵn (ảnh sản phẩm đã tách nền)** — kiểm tra alpha thật bằng Pillow (4 góc alpha=0) rồi trim + dùng thẳng, bỏ qua rmbg. Hai việc PHẢI tự dựng vì ảnh tách nền không mang theo (kiểm chứng case iPhone 2026-08-05):
    - **Bóng/phản chiếu**: `drop-shadow` theo hướng sáng của nền; nền tối premium → thêm phản chiếu sàn: slot thứ 2 cùng ảnh, **PHẢI cùng kích thước slot gốc** (slot thấp hơn sẽ bị `object-fit: contain` co nhỏ bóng — feedback case iPhone), ảnh `object-position: bottom` + `scaleY(-1)`, cắt phần hiện bằng `mask-image` fade + opacity ~0.16. ⚠️ mask áp TRƯỚC transform nên bị lật theo — muốn fade xuống dưới (visual) thì gradient phải "to top".
    - **Hòa ánh sáng**: ảnh studio thường lệch tông với nền — grade per-slot (`grade-warm/cool`) cho khớp.
-7. Element cần tách nền → `rmbg <img> -m briaai -o <out>.png` (skill `auto--media`), rồi hậu xử lý (kiểm chứng 2026-08-05):
-   - **Chủ thể có tông GẦN GIỐNG màu nền** (vd vật xám trên nền xám) → briaai có thể fail nặng: ra alpha loang lổ khắp khung hình (kiểm chứng: ~19% pixel alpha lửng lơ, không phải mép mềm mà là noise thật). Đổi sang `rmbg <img> -m modnet -o <out>.png` — modnet xử lý case tương phản thấp tốt hơn hẳn (còn ~8-10% alpha lửng, đúng nghĩa mép mềm tự nhiên). Đọc lại ảnh bằng vision sau rmbg để phát hiện case này trước khi tốn công lọc nhiễu.
+7. Element cần tách nền → `rmbg <img> -m modnet -o <out>.png` (skill `auto--media`), rồi hậu xử lý (kiểm chứng 2026-08-05):
+   - **Model mặc định là `modnet`, KHÔNG phải `briaai`**: kiểm chứng 4/4 lần trong 1 session, `briaai` ra alpha loang lổ khắp khung hình (~14-19% pixel alpha lửng lơ — không phải mép mềm mà là noise thật) kể cả khi chủ thể tương phản tốt với nền, không riêng case đồng tông. `modnet` luôn sạch hơn hẳn (~8-10% alpha lửng — đúng nghĩa mép mềm tự nhiên). Chỉ thử `briaai` nếu modnet cho kết quả tệ hơn ở case cụ thể nào đó. Đọc lại ảnh bằng vision sau rmbg để xác nhận trước khi tốn công lọc nhiễu.
    - **Lọc nhiễu alpha (bắt buộc)**: briaai để lại mảng alpha loang lổ khắp ảnh — chạy `python .agent/skills/design--compose/scripts/filter-alpha-noise.py <asset>.png` (giữ khối liền mạch lớn nhất qua `scipy.ndimage.label`, dilate 3px giữ mép mềm, mảng rời rạc set alpha = 0).
    - **Trim sát vật thể (bắt buộc — quy tắc chuẩn mục 6)**: chạy `trim-alpha.py` sau khi lọc nhiễu; nhờ slot-based nên trim không ảnh hưởng tọa độ overlay, nhưng quyết định vật thể fill khít slot và bóng/floor sát chân.
    - Prompt element: nền PHẲNG đồng nhất, tông NGƯỢC với palette chủ thể (chủ thể sáng/trắng → xám trung tính "#B0B0B0"–"#D0D0D0"; chủ thể tối → xám sáng "#EDEDED"; mặc định "#EDEDED"; CẤM nền cùng tông chủ thể, CẤM chroma xanh lá/magenta — gen model bleed màu vào mép lông/tóc), "soft contact shadow only". Lý do: rmbg là segmentation ngữ nghĩa chứ không phải chroma-key — cần tương phản chủ thể–nền, không cần màu key. Codex image_gen KHÔNG xuất alpha trực tiếp.
@@ -135,6 +146,8 @@ python .agent/skills/design--compose/scripts/open-review.py <output-dir>/design-
 ```
 
 Một lệnh lo trọn: tái dùng review-server đang serve đúng thư mục (hoặc tự khởi động nền ở port trống), chờ sẵn sàng, mở browser vào `#review`. Server cho phép nút Lưu/Xuất PNG hoạt động 0 token.
+
+HTML mở thường cũng có nút **Edit live** ngoài artboard. Bấm nút này chuyển sang `#review`: nếu đang mở qua review-server thì có đủ **Lưu/Xuất PNG**; nếu đang mở trực tiếp `file://` thì vẫn chỉnh được nhưng nút Lưu/Xuất PNG sẽ ẩn và topbar cảnh báo mở bằng `open-review.py`.
 
 (Fallback không server: mở `file:///<đường-dẫn>/design-{slug}.html#review` — nút Lưu/Xuất PNG tự ẩn, còn lại hoạt động đủ. Đừng đưa link dạng text — IDE/chat encode `?`/`#` gây ERR_FILE_NOT_FOUND, luôn mở bằng lệnh.)
 

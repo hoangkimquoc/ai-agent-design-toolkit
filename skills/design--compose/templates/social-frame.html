@@ -6,7 +6,7 @@
 <!-- FONT: chọn theo tính cách thiết kế (SKILL.md Bước 0.5) rồi tải về bằng
      scripts/fetch-fonts.py → thay link dưới bằng <output-dir>/fonts/fonts.css.
      Link mặc định là bộ cache khởi điểm của skill (Be Vietnam Pro + Baloo 2): -->
-<link href="file:///<path-to-skill>/assets/fonts/fonts.css" rel="stylesheet">
+<link href="file:///F:/nexus.anything/.agent/skills/design--compose/assets/fonts/fonts.css" rel="stylesheet">
 <style>
   /* ============================================================
      KHUNG ARTBOARD — chỉnh --frame-w/--frame-h theo aspect:
@@ -232,8 +232,9 @@
 
   </div>
 
-  <!-- REVIEW OVERLAY: chỉ hoạt động khi mở với ?review (sửa chữ, kéo slot, ghim comment,
-       xuất feedback JSON cho Claude). Ảnh export qua compose-screenshot.py luôn sạch. -->
-  <script src="file:///<path-to-skill>/scripts/review-overlay.js"></script>
+  <!-- LIVE EDITOR:
+       - Mở HTML thường: hiện nút "Edit live" ngoài artboard (không dính PNG export).
+       - Mở với #review qua open-review.py: bật editor + Save/Xuất PNG 0 token. -->
+  <script src="file:///F:/nexus.anything/.agent/skills/design--compose/scripts/review-overlay.js"></script>
 </body>
 </html>
