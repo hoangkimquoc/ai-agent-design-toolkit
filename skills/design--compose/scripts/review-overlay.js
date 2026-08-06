@@ -77,6 +77,7 @@
       tipRotHandle: 'Kéo để xoay (Shift = bước 15°)',
       savedSource: 'Đã lưu source:\n', exported: 'Đã lưu source + xuất PNG:\n', exportedHandoff: 'Đã lưu source + xuất handoff:\n',
       errSave: 'Lỗi lưu: ', errExport: 'Lỗi xuất: ', errServer: 'Không kết nối được review server: ',
+      errOldServer: 'Review server đang chạy là bản cũ. Mở lại bằng open-review.py để bật tính năng này.',
       commentN: 'Comment ',
       noServer: 'Editor offline — Lưu/Xuất PNG ẩn',
       layerNames: { 'layer-bg': 'Nền (Background)', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Nội dung (Text/UI)' }
@@ -131,6 +132,7 @@
       tipRotHandle: 'Drag to rotate (Shift = 15° steps)',
       savedSource: 'Source saved:\n', exported: 'Source saved + PNG exported:\n', exportedHandoff: 'Source saved + handoff exported:\n',
       errSave: 'Save error: ', errExport: 'Export error: ', errServer: 'Cannot reach review server: ',
+      errOldServer: 'The running review server is outdated. Reopen with open-review.py to enable this feature.',
       commentN: 'Comment ',
       noServer: 'Editor offline — Save/Export PNG hidden',
       layerNames: { 'layer-bg': 'Background', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Content (Text/UI)' }
@@ -1970,7 +1972,7 @@
 
   /* ================= export ================= */
   var currentFileName = location.pathname.split('/').pop() || 'design.html';
-  var serverOnline = false;
+  var serverFeatures = { save: false, png: false, handoff: false };
   var exportWrap = document.getElementById('rvw-export-wrap');
   var exportBtn = document.getElementById('rvw-export');
   var exportFeedbackBtn = document.getElementById('rvw-export-feedback');
@@ -1992,10 +1994,14 @@
     if (!exportWrap.contains(e.target)) exportWrap.classList.remove('rvw-open');
   });
   function closeExportMenu() { exportWrap.classList.remove('rvw-open'); }
-  function setExportServerOnline(ok) {
-    serverOnline = !!ok;
-    exportPngBtn.disabled = !serverOnline;
-    exportHandoffBtn.disabled = !serverOnline;
+  function setExportServerFeatures(features) {
+    var list = Array.isArray(features) ? features : [];
+    var legacyOnline = !features;
+    serverFeatures.save = legacyOnline || list.indexOf('save') >= 0;
+    serverFeatures.png = legacyOnline || list.indexOf('png') >= 0;
+    serverFeatures.handoff = list.indexOf('handoff') >= 0;
+    exportPngBtn.disabled = !serverFeatures.png;
+    exportHandoffBtn.disabled = !serverFeatures.handoff;
   }
   function exportFeedbackJSON() {
     var payload = {
@@ -2015,7 +2021,7 @@
     closeExportMenu();
   }
   function exportPNG() {
-    if (!serverOnline) { showNoServer(); return; }
+    if (!serverFeatures.png) { showNoServer(); return; }
     exportPngBtn.disabled = true; exportPngBtn.innerHTML = ICONS.image + T.shooting;
     fetch('/__review__/export?w=' + frame.offsetWidth + '&h=' + frame.offsetHeight +
       '&name=' + encodeURIComponent(currentFileName), {
@@ -2030,7 +2036,7 @@
     });
   }
   function exportHandoffJSON() {
-    if (!serverOnline) { showNoServer(); return; }
+    if (!serverFeatures.handoff) { showToast(T.errOldServer, true); return; }
     exportHandoffBtn.disabled = true; exportHandoffBtn.innerHTML = ICONS.export + T.exporting;
     fetch('/__review__/handoff?name=' + encodeURIComponent(currentFileName), {
       method: 'POST', body: cleanHTML()
@@ -2072,7 +2078,7 @@
     return '<!DOCTYPE html>\n' + root.outerHTML;
   }
   function showNoServer() {
-    setExportServerOnline(false);
+    setExportServerFeatures([]);
     var b = document.getElementById('rvw-srvstatus');
     if (!b) return;
     b.textContent = T.noServer;
@@ -2094,7 +2100,7 @@
     fetch('/__review__/ping').then(function (r) { return r.json(); }).then(function (j) {
       if (!j.ok) { showNoServer(); return; }
       showOnlineServer();
-      setExportServerOnline(true);
+      setExportServerFeatures(j.features);
       // Nút Lưu — ghi đè source HTML (backup .bak), 0 token
       var saveBtn = document.createElement('button');
       saveBtn.className = 'rvw-tool';

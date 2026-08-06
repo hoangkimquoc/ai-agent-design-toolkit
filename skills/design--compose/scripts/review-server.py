@@ -31,6 +31,8 @@ if sys.platform.startswith("win"):
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENSHOT = os.path.join(SKILL_DIR, "scripts", "compose-screenshot.py")
 HANDOFF = os.path.join(SKILL_DIR, "scripts", "export-compose.py")
+SERVER_VERSION = "1.4.2"
+SERVER_FEATURES = ["save", "png", "handoff"]
 # Mọi biến thể URL file:/// trỏ vào thư mục skill → map sang /__skill__/
 _SKILL_URL_RE = re.compile(r"file:///[^\"']*(?:design--compose|<path-to-skill>)", re.I)
 _REVIEW_OVERLAY_TAG = '<script src="/__skill__/scripts/review-overlay.js"></script>'
@@ -60,7 +62,7 @@ class ReviewHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/__review__/ping":
             # dir để open-review.py nhận diện server nào đang serve thư mục nào
-            return self._json(200, {"ok": True, "dir": os.getcwd()})
+            return self._json(200, {"ok": True, "dir": os.getcwd(), "version": SERVER_VERSION, "features": SERVER_FEATURES})
         if parsed.path.startswith("/__skill__/"):
             rel = parsed.path[len("/__skill__/"):]
             full = os.path.normpath(os.path.join(SKILL_DIR, rel))

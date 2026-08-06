@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.4.1
+version: 1.4.2
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -25,6 +25,8 @@ Output của skill là **một file HTML sống**, không phải chỉ là PNG:
 HTML output mở thường phải là review UI offline, không phải một viewer riêng. Offline mode dùng cùng UI với `#review`, chỉ khác là không có backend nên **Lưu source/Xuất PNG** bị ẩn và topbar hiện **Editor offline**. Browser không thể tự start Python từ `file://`; muốn lưu/xuất PNG 0 token thì dùng `open-review.py` để mở qua `http://127.0.0.1:<port>/...`.
 
 `open-review.py` phải mở browser ở page zoom 100% bằng profile Chrome/Edge tạm, vì Chrome có thể nhớ nhầm zoom 25% cho `file://`/origin cũ và làm toàn bộ editor chrome bé xíu. HTML/JS không có quyền reset page zoom của trình duyệt khi user tự mở file trực tiếp; nếu vẫn mở trực tiếp và bị nhỏ, dùng `Ctrl+0` hoặc mở lại bằng `open-review.py`.
+
+Review-server có version/features trong `/__review__/ping`. `open-review.py` không được tái dùng server cũ thiếu `handoff`; phải bỏ qua server đó và mở server mới ở port trống. Overlay chỉ bật option Handoff khi ping có `features: ["handoff"]`; nếu user gặp `unknown endpoint` nghĩa là tab đang trỏ vào server cũ, mở lại bằng `open-review.py`.
 
 ## Backend gen ảnh theo môi trường agent
 

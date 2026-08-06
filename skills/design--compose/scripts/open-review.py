@@ -106,6 +106,10 @@ def main() -> int:
                 free = p
             continue
         if info.get("ok") and os.path.normcase(info.get("dir", "")) == ddir:
+            features = set(info.get("features") or [])
+            if "handoff" not in features:
+                print(f"Bỏ qua review-server cũ thiếu handoff: port {p}")
+                continue
             port = p
             print(f"Tái dùng review-server đang chạy: port {p}")
             break
