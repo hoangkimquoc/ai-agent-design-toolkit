@@ -1972,7 +1972,7 @@
 
   /* ================= export ================= */
   var currentFileName = location.pathname.split('/').pop() || 'design.html';
-  var serverFeatures = { save: false, png: false, handoff: false };
+  var serverFeatures = { save: false, png: false, handoff: false, handoffLive: false };
   var exportWrap = document.getElementById('rvw-export-wrap');
   var exportBtn = document.getElementById('rvw-export');
   var exportFeedbackBtn = document.getElementById('rvw-export-feedback');
@@ -1999,7 +1999,8 @@
     var legacyOnline = !features;
     serverFeatures.save = legacyOnline || list.indexOf('save') >= 0;
     serverFeatures.png = legacyOnline || list.indexOf('png') >= 0;
-    serverFeatures.handoff = list.indexOf('handoff') >= 0;
+    serverFeatures.handoffLive = list.indexOf('handoff-live') >= 0;
+    serverFeatures.handoff = serverFeatures.handoffLive || list.indexOf('handoff') >= 0;
     exportPngBtn.disabled = !serverFeatures.png;
     exportHandoffBtn.disabled = !serverFeatures.handoff;
   }
@@ -2023,6 +2024,114 @@
   function openExportResult(res) {
     if (res && res.ok && res.url) window.open(res.url, '_blank', 'noopener');
   }
+  function pct(n) { return +(n * 100).toFixed(4); }
+  function rectForHandoff(el, fr) {
+    var r = el.getBoundingClientRect();
+    var x = r.left - fr.left, y = r.top - fr.top;
+    return {
+      px: {
+        x: +x.toFixed(2), y: +y.toFixed(2),
+        w: +r.width.toFixed(2), h: +r.height.toFixed(2)
+      },
+      pct: {
+        x: pct(x / fr.width), y: pct(y / fr.height),
+        w: pct(r.width / fr.width), h: pct(r.height / fr.height)
+      }
+    };
+  }
+  function layerForHandoff(el) {
+    var l = el.closest('.layer-bg,.layer-art,.layer-adjust,.layer-content');
+    return l ? (T.layerNames[classOf(l).split(/\s+/).filter(function (c) { return /^layer-/.test(c); })[0]] || classOf(l)) : 'Frame';
+  }
+  function roleForHandoff(el) {
+    if (/^(IMG|PICTURE)$/i.test(el.tagName)) return 'image';
+    if (/^(SVG|CANVAS|VIDEO)$/i.test(el.tagName)) return el.tagName.toLowerCase();
+    if (isTextEl(el)) return 'text';
+    if (classOf(el).indexOf('slot') >= 0) return 'slot';
+    if (isPassThroughEl(el)) return 'adjustment';
+    return 'group';
+  }
+  function computedForHandoff(el) {
+    var cs = getComputedStyle(el);
+    return {
+      position: cs.position, display: cs.display, zIndex: cs.zIndex, opacity: cs.opacity,
+      left: cs.left, top: cs.top, right: cs.right, bottom: cs.bottom,
+      width: cs.width, height: cs.height, transform: cs.transform, transformOrigin: cs.transformOrigin,
+      fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight,
+      lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, color: cs.color, textAlign: cs.textAlign,
+      backgroundColor: cs.backgroundColor, backgroundImage: cs.backgroundImage,
+      borderRadius: cs.borderRadius, boxShadow: cs.boxShadow, filter: cs.filter, mixBlendMode: cs.mixBlendMode,
+      objectFit: cs.objectFit, objectPosition: cs.objectPosition, overflow: cs.overflow
+    };
+  }
+  function directTextForHandoff(el) {
+    var out = [];
+    Array.prototype.forEach.call(el.childNodes, function (n) {
+      if (n.nodeType === 3 && n.textContent.trim()) out.push(n.textContent.trim());
+    });
+    return out.join(' ').trim();
+  }
+  function buildHandoffManifest() {
+    var fr = frame.getBoundingClientRect();
+    var nodes = Array.prototype.filter.call(frame.querySelectorAll('*'), function (el) {
+      if (!inDesign(el) || isLayerEl(el)) return false;
+      var r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+    });
+    var index = new Map();
+    nodes.forEach(function (el, i) { index.set(el, i); });
+    var manifestNodes = nodes.map(function (el, i) {
+      var node = {
+        id: ensureReviewId(el) || ('node-' + i),
+        selector: selectorOf(el),
+        tag: el.tagName.toLowerCase(),
+        className: classOf(el),
+        layer: layerForHandoff(el),
+        role: roleForHandoff(el),
+        parent: index.has(el.parentElement) ? index.get(el.parentElement) : null,
+        rect: rectForHandoff(el, fr),
+        computed: computedForHandoff(el),
+        lock: { position: true, size: true, zOrder: true }
+      };
+      if (el.getAttribute('data-rvw-label')) node.label = el.getAttribute('data-rvw-label');
+      if (el.getAttribute('alt')) node.alt = el.getAttribute('alt');
+      if (el.getAttribute('src')) {
+        node.src = el.getAttribute('src');
+        try { node.resolvedSrc = new URL(el.getAttribute('src'), location.href).href; } catch (err) { /* ignore */ }
+      }
+      var txt = directTextForHandoff(el);
+      if (txt) node.text = txt;
+      return node;
+    });
+    return {
+      format: 'design-compose-handoff',
+      version: '1.1',
+      fidelity: 'pixel-lock',
+      exported_at: new Date().toISOString(),
+      source: currentFileName,
+      frame: {
+        w: frame.offsetWidth,
+        h: frame.offsetHeight,
+        rect: { w: +fr.width.toFixed(2), h: +fr.height.toFixed(2) },
+        computed: computedForHandoff(frame)
+      },
+      implementation_policy: {
+        must_match_source: true,
+        external_chrome: false,
+        allowed_additions: [],
+        safe_area: 'compose_frame',
+        note: 'Recreate this compose frame first. Do not add logo, skip button, pagination, CTA, headers, or app chrome unless they exist as nodes in this manifest.'
+      },
+      feedback: {
+        texts: changes.texts,
+        moves: changes.moves,
+        props: changes.props,
+        element_feedback: changes.element_feedback,
+        pins: changes.pins
+      },
+      nodes: manifestNodes
+    };
+  }
   function exportPNG() {
     if (!serverFeatures.png) { showNoServer(); return; }
     exportPngBtn.disabled = true; exportPngBtn.innerHTML = ICONS.image + T.shooting;
@@ -2042,9 +2151,13 @@
   function exportHandoffJSON() {
     if (!serverFeatures.handoff) { showToast(T.errOldServer, true); return; }
     exportHandoffBtn.disabled = true; exportHandoffBtn.innerHTML = ICONS.export + T.exporting;
-    fetch('/__review__/handoff?name=' + encodeURIComponent(currentFileName), {
-      method: 'POST', body: cleanHTML()
-    }).then(function (r) { return r.json(); }).then(function (res) {
+    var liveManifest = buildHandoffManifest();
+    var livePayload = JSON.stringify({ html: cleanHTML(), manifest: liveManifest });
+    var url = serverFeatures.handoffLive ? '/__review__/handoff-live' : '/__review__/handoff';
+    var opts = serverFeatures.handoffLive
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: livePayload }
+      : { method: 'POST', body: cleanHTML() };
+    fetch(url + '?name=' + encodeURIComponent(currentFileName), opts).then(function (r) { return r.json(); }).then(function (res) {
       exportHandoffBtn.disabled = false; exportHandoffBtn.innerHTML = ICONS.export + T.handoff;
       openExportResult(res);
       showToast(res.ok ? T.exportedHandoff + res.path : T.errExport + res.error, !res.ok);

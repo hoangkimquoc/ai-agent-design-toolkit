@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.4.3
+version: 1.5.0
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -26,7 +26,7 @@ HTML output mở thường phải là review UI offline, không phải một vie
 
 `open-review.py` phải mở browser ở page zoom 100% bằng profile Chrome/Edge tạm, vì Chrome có thể nhớ nhầm zoom 25% cho `file://`/origin cũ và làm toàn bộ editor chrome bé xíu. HTML/JS không có quyền reset page zoom của trình duyệt khi user tự mở file trực tiếp; nếu vẫn mở trực tiếp và bị nhỏ, dùng `Ctrl+0` hoặc mở lại bằng `open-review.py`.
 
-Review-server có version/features trong `/__review__/ping`. `open-review.py` không được tái dùng server cũ thiếu `handoff`; phải bỏ qua server đó và mở server mới ở port trống. Overlay chỉ bật option Handoff khi ping có `features: ["handoff"]`; nếu user gặp `unknown endpoint` nghĩa là tab đang trỏ vào server cũ, mở lại bằng `open-review.py`.
+Review-server có version/features trong `/__review__/ping`. `open-review.py` không được tái dùng server cũ thiếu `handoff-live`; phải bỏ qua server đó và mở server mới ở port trống. Overlay chỉ bật option Handoff khi ping có `features` chứa `handoff-live`; nếu user gặp `unknown endpoint` nghĩa là tab đang trỏ vào server cũ, mở lại bằng `open-review.py`.
 
 ## Backend gen ảnh theo môi trường agent
 
@@ -194,7 +194,7 @@ python .agent/skills/design--compose/scripts/compose-screenshot.py \
 | React/Web | component + CSS/assets | Landing/app web |
 | Figma | plugin/import JSON | Đưa layer tree vào Figma để designer chỉnh tiếp |
 
-Manifest là contract trung gian bắt buộc trước khi sinh code native:
+Manifest là contract trung gian bắt buộc trước khi sinh code native. Khi xuất từ menu **Xuất → Handoff JSON** trong review UI online, manifest phải lấy từ DOM đang render bằng `getBoundingClientRect()` + `getComputedStyle()` và có `fidelity: "pixel-lock"`:
 
 ```bash
 python .agent/skills/design--compose/scripts/export-compose.py \
@@ -202,14 +202,18 @@ python .agent/skills/design--compose/scripts/export-compose.py \
   --out <output-dir>/design-{slug}-handoff.json
 ```
 
-Manifest gồm `frame`, `nodes[]`, `layer`, `role`, `selector`, `src/asset_path`, `text`, `bounds` theo phần trăm frame và inline `style`. Khi implement vào app thật, agent phải dùng manifest để map:
+Manifest gồm `frame`, `nodes[]`, `layer`, `role`, `selector`, `src/resolvedSrc`, `text`, `rect.px`, `rect.pct`, `computed`, `parent`, `feedback`, và `implementation_policy`. Static `export-compose.py` chỉ là fallback CLI; khi cần app/Figma/handoff chính thức, ưu tiên manifest live từ review UI vì nó chứa computed style thật sau khi user chỉnh.
+
+**Pixel-lock contract cho agent nhận handoff:** phải dựng đúng compose frame trước. Không tự thêm logo, skip button, pagination, CTA, header/footer, safe-area chrome, hay reflow layout nếu các phần đó không tồn tại trong `nodes[]`. Muốn thêm app chrome/native onboarding controls thì làm ở bước sau như một shell riêng, không làm thay đổi frame thiết kế gốc.
+
+Khi implement vào app thật, agent phải dùng manifest để map:
 - `layer-bg`/ảnh nền → `ImageBackground` hoặc absolute `<Image>`
 - `.slot > img` → asset absolute-position theo `%` frame
 - text trong `.layer-content` → component text native, không flatten vào ảnh nếu cần i18n/accessibility
 - z-order/layer order → thứ tự render hoặc `zIndex`
 
 Quy tắc chọn target:
-- User nói “đưa vào Expo/app/mobile/onboarding” → xuất handoff manifest trước, rồi sinh screen native từ manifest.
+- User nói “đưa vào Expo/app/mobile/onboarding” → xuất handoff manifest live trước, rồi sinh screen native từ manifest ở chế độ pixel-lock. Nếu user muốn biến nó thành màn app có logo/skip/CTA/pagination, hỏi/ghi rõ đó là bước adaptation riêng.
 - User chỉ cần hình marketing/splash tĩnh → PNG đủ.
 - User nói “như Figma/chỉnh tiếp trong Figma” → xuất handoff manifest làm payload import; không hứa tương thích `.fig` riêng tư của Figma.
 

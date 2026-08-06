@@ -5,6 +5,7 @@ Chạy nền trên máy user (0 token). Phục vụ thư mục design qua HTTP v
   POST /__review__/export?w=&h=   → body = HTML sạch của DOM hiện tại (kèm mọi chỉnh sửa
                                     live chưa lưu) → chụp headless Chrome → PNG cạnh design
   POST /__review__/handoff        → body = HTML sạch → lưu source → xuất *-handoff.json
+  POST /__review__/handoff-live   → body = {html, manifest} từ browser → lưu source + manifest pixel-lock
   GET  /__skill__/<path>          → serve file từ thư mục skill (overlay js, fonts cache)
   GET  *.html                     → tự rewrite đường dẫn file:///...design--compose → /__skill__/
 
@@ -31,8 +32,8 @@ if sys.platform.startswith("win"):
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENSHOT = os.path.join(SKILL_DIR, "scripts", "compose-screenshot.py")
 HANDOFF = os.path.join(SKILL_DIR, "scripts", "export-compose.py")
-SERVER_VERSION = "1.4.2"
-SERVER_FEATURES = ["save", "png", "handoff"]
+SERVER_VERSION = "1.5.0"
+SERVER_FEATURES = ["save", "png", "handoff", "handoff-live"]
 # Mọi biến thể URL file:/// trỏ vào thư mục skill → map sang /__skill__/
 _SKILL_URL_RE = re.compile(r"file:///[^\"']*(?:design--compose|<path-to-skill>)", re.I)
 _REVIEW_OVERLAY_TAG = '<script src="/__skill__/scripts/review-overlay.js"></script>'
@@ -96,10 +97,19 @@ class ReviewHandler(SimpleHTTPRequestHandler):
                 return
         return super().do_GET()
 
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        return self.rfile.read(length).decode("utf-8")
+
     def _read_html(self):
         """Đọc body + rewrite /__skill__ về file:/// để source lưu ra vẫn tự chạy qua file protocol."""
-        length = int(self.headers.get("Content-Length", 0))
-        html = self.rfile.read(length).decode("utf-8")
+        html = self._read_body()
+        return html.replace("/__skill__", "file:///" + SKILL_DIR.replace(os.sep, "/"))
+
+    def _read_json_payload(self):
+        return json.loads(self._read_body() or "{}")
+
+    def _rewrite_skill_refs(self, html):
         return html.replace("/__skill__", "file:///" + SKILL_DIR.replace(os.sep, "/"))
 
     def _save_source(self, name, html):
@@ -158,6 +168,25 @@ class ReviewHandler(SimpleHTTPRequestHandler):
                 )
                 if r.returncode != 0 or not os.path.exists(out):
                     return self._json(500, {"ok": False, "error": (r.stdout + r.stderr)[-400:]})
+                return self._json(200, {"ok": True, "path": out, "url": self._url_for_file(out), "source_saved": full})
+            except Exception as e:
+                return self._json(500, {"ok": False, "error": str(e)})
+
+        if parsed.path == "/__review__/handoff-live":
+            try:
+                payload = self._read_json_payload()
+                html = payload.get("html", "")
+                manifest = payload.get("manifest")
+                if not isinstance(manifest, dict):
+                    return self._json(400, {"ok": False, "error": "missing manifest"})
+                full = self._save_source(name, self._rewrite_skill_refs(html))
+                stem = re.sub(r"[^\w\-]", "", os.path.basename(full).replace(".html", "")) or "design"
+                out = os.path.join(os.getcwd(), f"{stem}-handoff.json")
+                manifest["source_saved"] = full
+                manifest["output_path"] = out
+                with open(out, "w", encoding="utf-8") as f:
+                    json.dump(manifest, f, ensure_ascii=False, indent=2)
+                    f.write("\n")
                 return self._json(200, {"ok": True, "path": out, "url": self._url_for_file(out), "source_saved": full})
             except Exception as e:
                 return self._json(500, {"ok": False, "error": str(e)})
