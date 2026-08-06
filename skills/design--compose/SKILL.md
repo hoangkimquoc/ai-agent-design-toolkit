@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.3.0
+version: 1.4.0
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -19,7 +19,7 @@ Output của skill là **một file HTML sống**, không phải chỉ là PNG:
 2. HTML offline dùng cùng topbar/panel/layers của review UI và hiện badge **Editor offline**. Nếu cần Lưu/Xuất PNG thì agent mở bằng `open-review.py <file>.html` để chạy review-server.
 3. Agent vẫn tự mở bằng `open-review.py` ngay sau khi dựng xong để user có full editor + Lưu/Xuất PNG ngay.
 4. User chỉnh trực tiếp trong browser: kéo lớp, sửa chữ, chỉnh opacity, comment.
-5. User bấm **Lưu** hoặc **Xuất PNG** trong editor; chỉ gửi feedback JSON khi cần agent thiết kế tiếp.
+5. User bấm **Lưu** hoặc mở menu **Xuất** để chọn PNG / handoff JSON. Nút **Feedback JSON** nằm cạnh Comment và chỉ active khi có comment/feedback mới.
 6. Khi cần đưa sang app thật/Figma/handoff, agent xuất thêm **compose handoff manifest** bằng `export-compose.py` rồi dùng manifest đó để sinh code hoặc import vào tool khác.
 
 HTML output mở thường phải là review UI offline, không phải một viewer riêng. Offline mode dùng cùng UI với `#review`, chỉ khác là không có backend nên **Lưu source/Xuất PNG** bị ẩn và topbar hiện **Editor offline**. Browser không thể tự start Python từ `file://`; muốn lưu/xuất PNG 0 token thì dùng `open-review.py` để mở qua `http://127.0.0.1:<port>/...`.
@@ -165,7 +165,7 @@ CSS filter/blend/overlay = adjustment layer Photoshop — đổi mood, đồng b
 ## Bước 3 — Xuất ảnh (CHỈ khi chốt, không nằm trong vòng lặp)
 
 **Trong vòng lặp thiết kế KHÔNG giao PNG mỗi lần** — bản mở trong browser (review overlay) chính là render sống pixel thật, user xem/chỉnh trực tiếp trên đó. PNG chính thức:
-- User tự bấm **Xuất PNG** trên overlay (lưu source + chụp, 0 token) — đường chính, hoặc
+- User tự mở menu **Xuất → PNG** trên overlay (lưu source + chụp, 0 token) — đường chính, hoặc
 - User yêu cầu Claude chụp trực tiếp.
 
 (Claude vẫn được chụp bản tạm để tự nghiệm thu bằng vision — đó là việc nội bộ, không phải deliverable.)
@@ -235,9 +235,10 @@ Overlay ([scripts/review-overlay.js](scripts/review-overlay.js), template đã n
 - **Snap & alignment guides**: khi kéo, element tự hít vào mép/tâm frame và mép/tâm các element khác (ngưỡng 6px), guide line đỏ hiện chỗ khớp; toggle nút Snap trên topbar, giữ Alt để tạm tắt khi kéo
 - **Canvas navigation**: Space+kéo hoặc chuột giữa = pan (hand tool) · Ctrl+lăn = zoom neo tại con trỏ · lăn = pan dọc, Shift+lăn = pan ngang · −/+/Fit trên topbar (Fit reset cả pan), tự fit khi mở
 - **Undo (Ctrl+Z / nút topbar)**: hoàn tác mọi mutation (move, resize, rotate, flip, opacity, z-order, sửa chữ, delete, đặt pin/region) — snapshot-based, max bước theo RAM máy (`navigator.deviceMemory` × 64, kẹp 50–500)
-- **Xuất feedback** (xanh dương): tải `feedback-{slug}.json` (`texts`/`moves`/`props`/`element_feedback`/`pins`) — dùng khi cần **Claude thiết kế tiếp** (đổi bố cục lớn, gen asset mới, xử lý comment). `element_feedback` là đường chính cho feedback theo phần tử: user chọn element → nhập ghi chú trong bubble dưới element → JSON lưu target `{id, selector, label, layer, bbox}`. `pins`/`regions` là đường phụ cho feedback theo vị trí/vùng trống và cũng kèm target nếu hit-test được.
+- **Feedback JSON**: nút nằm cạnh **Comment**, chỉ active khi có pin comment hoặc feedback gắn element mới. Khi bấm, tải `feedback-{slug}.json` (`texts`/`moves`/`props`/`element_feedback`/`pins`) và dùng được cả offline.
+- **Menu Xuất** (xanh dương): một nút có nhiều option giống design tool. **PNG** lưu source rồi chụp `<design>-final.png`; **Handoff JSON** lưu source rồi xuất `<design>-handoff.json` để agent sinh Expo/React/Figma payload. Option cần backend chỉ bật khi mở qua review-server online.
 - **Lưu** (chỉ hiện khi có review-server): ghi mọi chỉnh sửa live **thẳng vào file HTML source** (backup `.bak` bản trước) — 0 token
-- **Xuất PNG** (vàng, chỉ hiện khi có review-server): **lưu source trước rồi chụp từ chính source** → `<design>-final.png` cạnh design — PNG và HTML luôn đồng bộ, 0 token, không qua Claude
+- **Xuất PNG/Handoff** (trong menu Xuất, chỉ bật khi có review-server): **lưu source trước rồi xuất từ chính source** — PNG/JSON và HTML luôn đồng bộ, 0 token, không qua Claude
 
 Nhận feedback JSON từ user → áp `texts` / `moves` / `props` / `element_feedback` / `pins` vào source HTML → re-render → giao lại. Ưu tiên `element_feedback` khi cần sửa đúng phần tử vì nó có target metadata, không phải chỉ tọa độ trên frame. Ảnh export qua `compose-screenshot.py` không bao giờ dính overlay (URL không có `?review`).
 

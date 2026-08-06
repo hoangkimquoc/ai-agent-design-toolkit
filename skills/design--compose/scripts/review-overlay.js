@@ -28,8 +28,8 @@
   /* ================= i18n (vi/en) — auto theo browser, toggle trên topbar ================= */
   var LANGS = {
     vi: {
-      select: 'Chọn', comment: 'Comment', snap: 'Snap', exportFb: 'Xuất comment cho AI sửa', save: 'Lưu',
-      png: 'Xuất PNG', shooting: 'Đang chụp...', changes: 'thay đổi',
+      select: 'Chọn', comment: 'Comment', snap: 'Snap', exportFb: 'Feedback JSON', save: 'Lưu',
+      exportMenu: 'Xuất', png: 'PNG', handoff: 'Handoff JSON', shooting: 'Đang chụp...', exporting: 'Đang xuất...', changes: 'thay đổi',
       props: 'Thuộc tính', layersTitle: 'Layers',
       openEditor: 'Edit live', openEditorHint: 'Mở live editor để chỉnh chữ, kéo lớp, comment và xuất PNG.',
       startBackendTitle: 'Bật live editor',
@@ -75,15 +75,15 @@
       tipSave: 'Lưu mọi chỉnh sửa live vào file HTML source (backup .bak)',
       tipPng: 'Lưu source + chụp PNG chính thức ngay trên máy — không qua AI',
       tipRotHandle: 'Kéo để xoay (Shift = bước 15°)',
-      savedSource: 'Đã lưu source:\n', exported: 'Đã lưu source + xuất PNG:\n',
+      savedSource: 'Đã lưu source:\n', exported: 'Đã lưu source + xuất PNG:\n', exportedHandoff: 'Đã lưu source + xuất handoff:\n',
       errSave: 'Lỗi lưu: ', errExport: 'Lỗi xuất: ', errServer: 'Không kết nối được review server: ',
       commentN: 'Comment ',
       noServer: 'Editor offline — Lưu/Xuất PNG ẩn',
       layerNames: { 'layer-bg': 'Nền (Background)', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Nội dung (Text/UI)' }
     },
     en: {
-      select: 'Select', comment: 'Comment', snap: 'Snap', exportFb: 'Export comment for AI editing', save: 'Save',
-      png: 'Export PNG', shooting: 'Capturing...', changes: 'changes',
+      select: 'Select', comment: 'Comment', snap: 'Snap', exportFb: 'Feedback JSON', save: 'Save',
+      exportMenu: 'Export', png: 'PNG', handoff: 'Handoff JSON', shooting: 'Capturing...', exporting: 'Exporting...', changes: 'changes',
       props: 'Properties', layersTitle: 'Layers',
       openEditor: 'Edit live', openEditorHint: 'Open the live editor to edit text, move layers, comment, and export PNG.',
       startBackendTitle: 'Start live editor',
@@ -129,7 +129,7 @@
       tipSave: 'Save live edits into the source HTML file (.bak backup)',
       tipPng: 'Save source + capture the official PNG locally — no AI involved',
       tipRotHandle: 'Drag to rotate (Shift = 15° steps)',
-      savedSource: 'Source saved:\n', exported: 'Source saved + PNG exported:\n',
+      savedSource: 'Source saved:\n', exported: 'Source saved + PNG exported:\n', exportedHandoff: 'Source saved + handoff exported:\n',
       errSave: 'Save error: ', errExport: 'Export error: ', errServer: 'Cannot reach review server: ',
       commentN: 'Comment ',
       noServer: 'Editor offline — Save/Export PNG hidden',
@@ -225,6 +225,19 @@
   .rvw-zoom .rvw-zval{min-width:44px;text-align:center;}
   .rvw-export{background:#0d99ff;color:#fff;font-weight:600;}
   .rvw-export:hover{background:#0b87e0;}
+  .rvw-export-wrap{position:relative;display:flex;align-items:center;}
+  .rvw-export-menu{position:absolute;top:36px;left:0;min-width:190px;background:#2c2c2c;border:1px solid #444;
+    border-radius:6px;padding:6px;box-shadow:0 10px 28px rgba(0,0,0,.45);display:none;z-index:120000;}
+  .rvw-export-wrap.rvw-open .rvw-export-menu{display:block;}
+  .rvw-export-menu button{width:100%;height:30px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;
+    border-radius:4px;background:transparent;color:#ddd;font:500 12px Inter,'Segoe UI',sans-serif;text-align:left;cursor:pointer;}
+  .rvw-export-menu button svg{width:15px;height:15px;flex:0 0 15px;stroke:currentColor;fill:none;stroke-width:1.6;
+    stroke-linecap:round;stroke-linejoin:round;}
+  .rvw-export-menu button:hover{background:#3a3a3a;}
+  .rvw-export-menu button:disabled{opacity:.42;cursor:not-allowed;}
+  .rvw-export-menu button:disabled:hover{background:transparent;}
+  .rvw-tool:disabled{opacity:.42;cursor:not-allowed;}
+  .rvw-tool:disabled:hover{background:transparent;}
   .rvw-approve{background:#1f9d55;color:#fff;font-weight:600;}
   .rvw-approve:hover{background:#188945;}
   .rvw-png{background:#e7b84c;color:#1a1a1a;font-weight:700;}
@@ -460,12 +473,16 @@
     '<span class="rvw-srvstatus" id="rvw-srvstatus" style="display:none"></span>' +
     '<button class="rvw-tool rvw-active" id="rvw-mode-select" title="' + T.tipSelect + '">' + ICONS.select + T.select + '</button>' +
     '<button class="rvw-tool" id="rvw-mode-comment" title="' + T.tipComment + '">' + ICONS.comment + T.comment + '</button>' +
+    '<button class="rvw-tool" id="rvw-export-feedback" title="' + T.tipExport + '" disabled>' + ICONS.export + T.exportFb + '</button>' +
     '<span class="rvw-sep"></span>' +
     '<button class="rvw-tool rvw-active" id="rvw-snap" title="' + T.tipSnap + '">' + ICONS.grid + T.snap + '</button>' +
     '<button class="rvw-tool" id="rvw-undo" title="' + T.tipUndo + '">' + ICONS.undo + '</button>' +
     '<span class="rvw-sep"></span>' +
     '<span class="rvw-group" id="rvw-actions"></span>' +
-    '<button class="rvw-tool rvw-export" id="rvw-export" title="' + T.tipExport + '">' + ICONS.export + T.exportFb + '</button>' +
+    '<span class="rvw-export-wrap" id="rvw-export-wrap"><button class="rvw-tool rvw-export" id="rvw-export" title="' + T.tipExport + '">' + ICONS.export + T.exportMenu + ' ▾</button>' +
+    '<span class="rvw-export-menu" id="rvw-export-menu">' +
+    '<button id="rvw-export-png" disabled>' + ICONS.image + T.png + '</button>' +
+    '<button id="rvw-export-handoff" disabled>' + ICONS.export + T.handoff + '</button></span></span>' +
     '<span class="rvw-badge" id="rvw-count">0 ' + T.changes + '</span>' +
     '<span class="rvw-langsw" id="rvw-lang" title="Language / Ngôn ngữ">' +
     '<button data-lang="vi" class="' + (lang === 'vi' ? 'rvw-lon' : '') + '">' + FLAGS.vi + 'VI</button>' +
@@ -893,6 +910,7 @@
       Object.keys(changes.props).length + changes.pins.length +
       Object.keys(changes.element_feedback).filter(function (k) { return changes.element_feedback[k].note; }).length;
     document.getElementById('rvw-count').textContent = n + ' ' + T.changes;
+    if (typeof updateFeedbackExportState === 'function') updateFeedbackExportState();
   }
   function isText(el) { return isTextEl(el); }
 
@@ -1929,9 +1947,37 @@
   });
 
   /* ================= export ================= */
-  document.getElementById('rvw-export').onclick = function () {
+  var currentFileName = location.pathname.split('/').pop() || 'design.html';
+  var serverOnline = false;
+  var exportWrap = document.getElementById('rvw-export-wrap');
+  var exportBtn = document.getElementById('rvw-export');
+  var exportFeedbackBtn = document.getElementById('rvw-export-feedback');
+  var exportPngBtn = document.getElementById('rvw-export-png');
+  var exportHandoffBtn = document.getElementById('rvw-export-handoff');
+  function hasFeedbackForAI() {
+    return changes.pins.length > 0 ||
+      Object.keys(changes.element_feedback).some(function (k) { return changes.element_feedback[k].note; });
+  }
+  function updateFeedbackExportState() {
+    if (!exportFeedbackBtn) return;
+    exportFeedbackBtn.disabled = !hasFeedbackForAI();
+  }
+  exportBtn.onclick = function (e) {
+    e.stopPropagation();
+    exportWrap.classList.toggle('rvw-open');
+  };
+  document.addEventListener('click', function (e) {
+    if (!exportWrap.contains(e.target)) exportWrap.classList.remove('rvw-open');
+  });
+  function closeExportMenu() { exportWrap.classList.remove('rvw-open'); }
+  function setExportServerOnline(ok) {
+    serverOnline = !!ok;
+    exportPngBtn.disabled = !serverOnline;
+    exportHandoffBtn.disabled = !serverOnline;
+  }
+  function exportFeedbackJSON() {
     var payload = {
-      file: location.pathname.split('/').pop(),
+      file: currentFileName,
       exported_at: new Date().toISOString(),
       frame: { w: frame.offsetWidth, h: frame.offsetHeight },
       texts: changes.texts, moves: changes.moves, props: changes.props,
@@ -1944,7 +1990,41 @@
     a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
     a.download = 'feedback-' + payload.file.replace('.html', '') + '.json';
     a.click();
-  };
+    closeExportMenu();
+  }
+  function exportPNG() {
+    if (!serverOnline) { showNoServer(); return; }
+    exportPngBtn.disabled = true; exportPngBtn.innerHTML = ICONS.image + T.shooting;
+    fetch('/__review__/export?w=' + frame.offsetWidth + '&h=' + frame.offsetHeight +
+      '&name=' + encodeURIComponent(currentFileName), {
+      method: 'POST', body: cleanHTML()
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      exportPngBtn.disabled = false; exportPngBtn.innerHTML = ICONS.image + T.png;
+      showToast(res.ok ? T.exported + res.path : T.errExport + res.error, !res.ok);
+      closeExportMenu();
+    }).catch(function (err) {
+      exportPngBtn.disabled = false; exportPngBtn.innerHTML = ICONS.image + T.png;
+      showToast(T.errServer + err, true);
+    });
+  }
+  function exportHandoffJSON() {
+    if (!serverOnline) { showNoServer(); return; }
+    exportHandoffBtn.disabled = true; exportHandoffBtn.innerHTML = ICONS.export + T.exporting;
+    fetch('/__review__/handoff?name=' + encodeURIComponent(currentFileName), {
+      method: 'POST', body: cleanHTML()
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      exportHandoffBtn.disabled = false; exportHandoffBtn.innerHTML = ICONS.export + T.handoff;
+      showToast(res.ok ? T.exportedHandoff + res.path : T.errExport + res.error, !res.ok);
+      closeExportMenu();
+    }).catch(function (err) {
+      exportHandoffBtn.disabled = false; exportHandoffBtn.innerHTML = ICONS.export + T.handoff;
+      showToast(T.errServer + err, true);
+    });
+  }
+  exportFeedbackBtn.onclick = exportFeedbackJSON;
+  exportPngBtn.onclick = exportPNG;
+  exportHandoffBtn.onclick = exportHandoffJSON;
+  updateFeedbackExportState();
 
   /* ================= Xuất PNG trực tiếp (0 token — cần review-server.py) =================
      Serialize DOM hiện tại (gồm mọi chỉnh sửa live chưa lưu), lột sạch overlay chrome,
@@ -1970,6 +2050,7 @@
     return '<!DOCTYPE html>\n' + root.outerHTML;
   }
   function showNoServer() {
+    setExportServerOnline(false);
     var b = document.getElementById('rvw-srvstatus');
     if (!b) return;
     b.textContent = T.noServer;
@@ -1991,7 +2072,7 @@
     fetch('/__review__/ping').then(function (r) { return r.json(); }).then(function (j) {
       if (!j.ok) { showNoServer(); return; }
       showOnlineServer();
-      var fileName = location.pathname.split('/').pop();
+      setExportServerOnline(true);
       // Nút Lưu — ghi đè source HTML (backup .bak), 0 token
       var saveBtn = document.createElement('button');
       saveBtn.className = 'rvw-tool';
@@ -2000,30 +2081,10 @@
       saveBtn.innerHTML = ICONS.check + T.save;
       document.getElementById('rvw-actions').appendChild(saveBtn);
       saveBtn.onclick = function () {
-        fetch('/__review__/save?name=' + encodeURIComponent(fileName), { method: 'POST', body: cleanHTML() })
+        fetch('/__review__/save?name=' + encodeURIComponent(currentFileName), { method: 'POST', body: cleanHTML() })
           .then(function (r) { return r.json(); })
           .then(function (res) { showToast(res.ok ? T.savedSource + res.path : T.errSave + res.error, !res.ok); })
           .catch(function (err) { showToast(T.errServer + err, true); });
-      };
-      // Nút Xuất PNG — lưu source TRƯỚC rồi chụp từ source → PNG luôn khớp HTML
-      var btn = document.createElement('button');
-      btn.className = 'rvw-tool rvw-png';
-      btn.id = 'rvw-png';
-      btn.title = T.tipPng;
-      btn.innerHTML = ICONS.image + T.png;
-      document.getElementById('rvw-actions').appendChild(btn);
-      btn.onclick = function () {
-        btn.disabled = true; btn.innerHTML = ICONS.image + T.shooting;
-        fetch('/__review__/export?w=' + frame.offsetWidth + '&h=' + frame.offsetHeight +
-          '&name=' + encodeURIComponent(fileName), {
-          method: 'POST', body: cleanHTML()
-        }).then(function (r) { return r.json(); }).then(function (res) {
-          btn.disabled = false; btn.innerHTML = ICONS.image + T.png;
-          showToast(res.ok ? T.exported + res.path : T.errExport + res.error, !res.ok);
-        }).catch(function (err) {
-          btn.disabled = false; btn.innerHTML = ICONS.image + T.png;
-          showToast(T.errServer + err, true);
-        });
       };
     }).catch(showNoServer);
   } else {

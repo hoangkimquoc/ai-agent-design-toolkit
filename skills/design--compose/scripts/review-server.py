@@ -1,9 +1,10 @@
 """Local review server — cho nút "Xuất PNG" trên overlay hoạt động không cần Claude.
 
 Chạy nền trên máy user (0 token). Phục vụ thư mục design qua HTTP và expose:
-  GET  /__review__/ping           → {"ok": true} (overlay detect để hiện nút Xuất PNG)
+  GET  /__review__/ping           → {"ok": true} (overlay detect để bật option PNG/Handoff)
   POST /__review__/export?w=&h=   → body = HTML sạch của DOM hiện tại (kèm mọi chỉnh sửa
                                     live chưa lưu) → chụp headless Chrome → PNG cạnh design
+  POST /__review__/handoff        → body = HTML sạch → lưu source → xuất *-handoff.json
   GET  /__skill__/<path>          → serve file từ thư mục skill (overlay js, fonts cache)
   GET  *.html                     → tự rewrite đường dẫn file:///...design--compose → /__skill__/
 
@@ -29,6 +30,7 @@ if sys.platform.startswith("win"):
 
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENSHOT = os.path.join(SKILL_DIR, "scripts", "compose-screenshot.py")
+HANDOFF = os.path.join(SKILL_DIR, "scripts", "export-compose.py")
 # Mọi biến thể URL file:/// trỏ vào thư mục skill → map sang /__skill__/
 _SKILL_URL_RE = re.compile(r"file:///[^\"']*(?:design--compose|<path-to-skill>)", re.I)
 _REVIEW_OVERLAY_TAG = '<script src="/__skill__/scripts/review-overlay.js"></script>'
@@ -133,6 +135,21 @@ class ReviewHandler(SimpleHTTPRequestHandler):
                 r = subprocess.run(
                     [sys.executable, SCREENSHOT, "--html", full, "--size", f"{w}x{h}", "--output", out],
                     capture_output=True, text=True, timeout=90,
+                )
+                if r.returncode != 0 or not os.path.exists(out):
+                    return self._json(500, {"ok": False, "error": (r.stdout + r.stderr)[-400:]})
+                return self._json(200, {"ok": True, "path": out, "source_saved": full})
+            except Exception as e:
+                return self._json(500, {"ok": False, "error": str(e)})
+
+        if parsed.path == "/__review__/handoff":
+            try:
+                full = self._save_source(name, self._read_html())
+                stem = re.sub(r"[^\w\-]", "", os.path.basename(full).replace(".html", "")) or "design"
+                out = os.path.join(os.getcwd(), f"{stem}-handoff.json")
+                r = subprocess.run(
+                    [sys.executable, HANDOFF, full, "--out", out],
+                    capture_output=True, text=True, timeout=30,
                 )
                 if r.returncode != 0 or not os.path.exists(out):
                     return self._json(500, {"ok": False, "error": (r.stdout + r.stderr)[-400:]})
