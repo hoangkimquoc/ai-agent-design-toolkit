@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.5.0
+version: 1.6.0
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -202,14 +202,17 @@ python .agent/skills/design--compose/scripts/export-compose.py \
   --out <output-dir>/design-{slug}-handoff.json
 ```
 
-Manifest gồm `frame`, `nodes[]`, `layer`, `role`, `selector`, `src/resolvedSrc`, `text`, `rect.px`, `rect.pct`, `computed`, `parent`, `feedback`, và `implementation_policy`. Static `export-compose.py` chỉ là fallback CLI; khi cần app/Figma/handoff chính thức, ưu tiên manifest live từ review UI vì nó chứa computed style thật sau khi user chỉnh.
+Manifest gồm `frame`, `layout_system`, `nodes[]`, `layer`, `role`, `selector`, `src/resolvedSrc`, `text`, `rect.px`, `rect.pct`, `grid`, `computed`, `parent`, `feedback`, và `implementation_policy`. Static `export-compose.py` chỉ là fallback CLI; khi cần app/Figma/handoff chính thức, ưu tiên manifest live từ review UI vì nó chứa computed style thật sau khi user chỉnh.
 
 **Pixel-lock contract cho agent nhận handoff:** phải dựng đúng compose frame trước. Không tự thêm logo, skip button, pagination, CTA, header/footer, safe-area chrome, hay reflow layout nếu các phần đó không tồn tại trong `nodes[]`. Muốn thêm app chrome/native onboarding controls thì làm ở bước sau như một shell riêng, không làm thay đổi frame thiết kế gốc.
+
+**Grid intent contract:** handoff live luôn xuất thêm grid 12 cột x 24 hàng theo `layout_system`. Mỗi node có `grid.colStart`, `grid.colSpan`, `grid.rowStart`, `grid.rowSpan`, `anchor`, `zone`, và `reflow: "locked"`. Agent nhận handoff phải dùng `rect.pct`/`rect.px` để match bản gốc; chỉ dùng `grid` để hiểu intent, đặt constraints, hoặc adapt có kiểm soát sang viewport khác. Nếu cần responsive thật, tạo variant/adaptation mới thay vì ghi đè pixel-lock frame.
 
 Khi implement vào app thật, agent phải dùng manifest để map:
 - `layer-bg`/ảnh nền → `ImageBackground` hoặc absolute `<Image>`
 - `.slot > img` → asset absolute-position theo `%` frame
 - text trong `.layer-content` → component text native, không flatten vào ảnh nếu cần i18n/accessibility
+- `layout_system`/`node.grid` → constraints/grid metadata cho Figma, responsive hints, hoặc RN helper
 - z-order/layer order → thứ tự render hoặc `zIndex`
 
 Quy tắc chọn target:

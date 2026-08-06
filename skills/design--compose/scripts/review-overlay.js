@@ -2039,6 +2039,52 @@
       }
     };
   }
+  function layoutSystemForHandoff() {
+    var w = frame.offsetWidth || 1080;
+    var h = frame.offsetHeight || 1920;
+    return {
+      type: 'grid',
+      columns: 12,
+      rows: 24,
+      margin: { x: Math.round(w * 0.0667), y: Math.round(h * 0.05), unit: 'px' },
+      gutter: { x: Math.round(w * 0.0148), y: Math.round(h * 0.0083), unit: 'px' },
+      coordinate_space: 'compose_frame',
+      sizing: 'absolute-first',
+      responsive_hint: 'Use rect.pct for pixel fidelity; use grid only to preserve intent when adapting to another viewport.'
+    };
+  }
+  function gridTrackForHandoff(start, size, total, count) {
+    var unit = total / count;
+    var a = Math.max(1, Math.min(count, Math.floor(start / unit) + 1));
+    var b = Math.max(a, Math.min(count, Math.ceil((start + size) / unit)));
+    return { start: a, span: Math.max(1, b - a + 1), end: b };
+  }
+  function anchorForHandoff(rect, fr) {
+    var cx = rect.px.x + rect.px.w / 2;
+    var cy = rect.px.y + rect.px.h / 2;
+    var x = cx < fr.width * 0.36 ? 'left' : (cx > fr.width * 0.64 ? 'right' : 'center');
+    var y = cy < fr.height * 0.34 ? 'top' : (cy > fr.height * 0.66 ? 'bottom' : 'middle');
+    return y + '-' + x;
+  }
+  function zoneForHandoff(rect, fr) {
+    var cy = rect.px.y + rect.px.h / 2;
+    if (cy < fr.height * 0.25) return 'header';
+    if (cy < fr.height * 0.68) return 'body';
+    return 'footer';
+  }
+  function gridForHandoff(rect, fr) {
+    var col = gridTrackForHandoff(rect.px.x, rect.px.w, fr.width, 12);
+    var row = gridTrackForHandoff(rect.px.y, rect.px.h, fr.height, 24);
+    return {
+      colStart: col.start,
+      colSpan: col.span,
+      rowStart: row.start,
+      rowSpan: row.span,
+      anchor: anchorForHandoff(rect, fr),
+      zone: zoneForHandoff(rect, fr),
+      reflow: 'locked'
+    };
+  }
   function layerForHandoff(el) {
     var l = el.closest('.layer-bg,.layer-art,.layer-adjust,.layer-content');
     return l ? (T.layerNames[classOf(l).split(/\s+/).filter(function (c) { return /^layer-/.test(c); })[0]] || classOf(l)) : 'Frame';
@@ -2081,6 +2127,7 @@
     var index = new Map();
     nodes.forEach(function (el, i) { index.set(el, i); });
     var manifestNodes = nodes.map(function (el, i) {
+      var rect = rectForHandoff(el, fr);
       var node = {
         id: ensureReviewId(el) || ('node-' + i),
         selector: selectorOf(el),
@@ -2089,7 +2136,8 @@
         layer: layerForHandoff(el),
         role: roleForHandoff(el),
         parent: index.has(el.parentElement) ? index.get(el.parentElement) : null,
-        rect: rectForHandoff(el, fr),
+        rect: rect,
+        grid: gridForHandoff(rect, fr),
         computed: computedForHandoff(el),
         lock: { position: true, size: true, zOrder: true }
       };
@@ -2105,10 +2153,11 @@
     });
     return {
       format: 'design-compose-handoff',
-      version: '1.1',
+      version: '1.2',
       fidelity: 'pixel-lock',
       exported_at: new Date().toISOString(),
       source: currentFileName,
+      layout_system: layoutSystemForHandoff(),
       frame: {
         w: frame.offsetWidth,
         h: frame.offsetHeight,

@@ -32,7 +32,7 @@ if sys.platform.startswith("win"):
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENSHOT = os.path.join(SKILL_DIR, "scripts", "compose-screenshot.py")
 HANDOFF = os.path.join(SKILL_DIR, "scripts", "export-compose.py")
-SERVER_VERSION = "1.5.0"
+SERVER_VERSION = "1.6.0"
 SERVER_FEATURES = ["save", "png", "handoff", "handoff-live"]
 # Mọi biến thể URL file:/// trỏ vào thư mục skill → map sang /__skill__/
 _SKILL_URL_RE = re.compile(r"file:///[^\"']*(?:design--compose|<path-to-skill>)", re.I)
