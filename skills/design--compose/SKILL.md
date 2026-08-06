@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.2.3
+version: 1.2.4
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -16,14 +16,14 @@ Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh
 Output của skill là **một file HTML sống**, không phải chỉ là PNG:
 
 1. Agent tạo `design-{slug}.html` từ template. Mở thường bằng `file://` phải là **offline view sạch** của thiết kế, không hiện editor chrome trong artboard.
-2. HTML offline có nút **Edit live** ngoài artboard. Bấm nút này sẽ:
+2. HTML offline có status pill **Editor online/offline** ngoài artboard, không che/dim thiết kế. Bấm pill sẽ:
    - tự chuyển sang review-server nếu server cùng thư mục đang chạy;
-   - nếu chưa có server, hiện đúng command `open-review.py <file>.html` để bật backend local.
+   - nếu chưa có server, copy đúng command `open-review.py <file>.html` vào clipboard và để command trong tooltip.
 3. Agent vẫn tự mở bằng `open-review.py` ngay sau khi dựng xong để user có full editor + Lưu/Xuất PNG ngay.
 4. User chỉnh trực tiếp trong browser: kéo lớp, sửa chữ, chỉnh opacity, comment.
 5. User bấm **Lưu** hoặc **Xuất PNG** trong editor; chỉ gửi feedback JSON khi cần agent thiết kế tiếp.
 
-HTML output mở thường phải là bản xem offline, có nút **Edit live** ngoài artboard để user tự quay lại editor sau này. Nút này là editor chrome, không phải design layer, và không được lọt vào PNG export. Browser không thể tự start Python từ `file://`; nút chỉ có thể tìm server đang chạy hoặc hiện command bật backend.
+HTML output mở thường phải là bản xem offline sạch, có status pill **Editor online/offline** ngoài artboard để user biết live editor có sẵn không. Pill này là editor chrome, không phải design layer, không được lọt vào PNG export, và không được mở modal che thiết kế. Browser không thể tự start Python từ `file://`; pill chỉ có thể tìm server đang chạy hoặc copy command bật backend.
 
 ## Backend gen ảnh theo môi trường agent
 
@@ -112,7 +112,7 @@ python .agent/skills/design--compose/scripts/fetch-fonts.py \
 └── {slug}-{aspect}.png  # output
 ```
 
-1. Copy `templates/social-frame.html` → `design-{slug}.html`. Giữ nguyên script `review-overlay.js` ở cuối file để HTML tự có nút **Edit live** khi mở thường và editor khi mở với `#review`.
+1. Copy `templates/social-frame.html` → `design-{slug}.html`. Giữ nguyên script `review-overlay.js` ở cuối file để HTML tự có status pill **Editor online/offline** khi mở thường và editor khi mở với `#review`.
 2. Copy asset user cung cấp vào `assets/` (đường dẫn tương đối từ file HTML).
 
 ## Bước 2 — Ghép lớp (sửa trực tiếp file HTML)
@@ -188,10 +188,10 @@ python .agent/skills/design--compose/scripts/open-review.py <output-dir>/design-
 
 Một lệnh lo trọn: tái dùng review-server đang serve đúng thư mục (hoặc tự khởi động nền ở port trống), chờ sẵn sàng, mở browser vào `#review`. Server cho phép nút Lưu/Xuất PNG hoạt động 0 token.
 
-HTML mở thường cũng có nút **Edit live** ngoài artboard:
-- Nếu đang mở qua `http://127.0.0.1:<port>/...`, nút chuyển sang `#review` và bật editor đầy đủ.
-- Nếu đang mở trực tiếp `file://`, nút dò review-server đang chạy cho cùng thư mục; tìm thấy thì chuyển sang URL server `#review`.
-- Nếu chưa có server, nút hiện command `python ".../open-review.py" "<file>.html"` để bật backend local. Đây là giới hạn bảo mật trình duyệt: file offline không thể tự chạy Python.
+HTML mở thường cũng có status pill **Editor online/offline** ngoài artboard:
+- Nếu đang mở qua `http://127.0.0.1:<port>/...`, pill chuyển sang `#review` và bật editor đầy đủ.
+- Nếu đang mở trực tiếp `file://`, pill dò review-server đang chạy cho cùng thư mục; tìm thấy thì chuyển sang URL server `#review`.
+- Nếu chưa có server, pill hiện trạng thái offline; click pill chỉ copy command `python ".../open-review.py" "<file>.html"` và đặt command vào tooltip, không mở modal/dim overlay. Đây là giới hạn bảo mật trình duyệt: file offline không thể tự chạy Python.
 
 (Fallback không server: mở `file:///<đường-dẫn>/design-{slug}.html#review` — nút Lưu/Xuất PNG tự ẩn, còn lại hoạt động đủ. Đừng đưa link dạng text — IDE/chat encode `?`/`#` gây ERR_FILE_NOT_FOUND, luôn mở bằng lệnh.)
 

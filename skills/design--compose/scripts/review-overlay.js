@@ -1,6 +1,6 @@
 /**
  * Review overlay cho design--compose — editor chrome kiểu Figma/Canva.
- * Khi mở thường: hiện nút "Edit live" ngoài artboard để user vào editor.
+ * Khi mở thường: hiện status pill online/offline ngoài artboard để user vào editor.
  * Khi URL có "#review" (hoặc "?review"): bật editor chrome. Ảnh export qua
  * compose-screenshot.py chụp đúng artboard nên không dính launcher/editor UI.
  *
@@ -36,6 +36,10 @@
       startBackendCopied: 'Đã copy lệnh',
       startBackendClose: 'Đóng',
       startBackendLoading: 'Đang tìm server...',
+      editorOnline: 'Editor online',
+      editorOffline: 'Editor offline',
+      editorCopied: 'Đã copy lệnh',
+      editorOfflineHint: 'Offline: click để copy lệnh bật live editor',
       emptyHint: 'Click một element trên thiết kế để chọn.<br><br>Kéo để di chuyển · mũi tên để tinh chỉnh · double-click để sửa chữ.',
       multiSel: ' elements đã chọn',
       multiHint: 'Kéo để di chuyển cả nhóm · mũi tên nudge · Delete ẩn tất cả · Shift+click để thêm/bớt · Esc bỏ chọn.',
@@ -86,6 +90,10 @@
       startBackendCopied: 'Command copied',
       startBackendClose: 'Close',
       startBackendLoading: 'Looking for server...',
+      editorOnline: 'Editor online',
+      editorOffline: 'Editor offline',
+      editorCopied: 'Command copied',
+      editorOfflineHint: 'Offline: click to copy the live editor command',
       emptyHint: 'Click an element on the canvas to select it.<br><br>Drag to move · arrows to nudge · double-click to edit text.',
       multiSel: ' elements selected',
       multiHint: 'Drag to move the group · arrows to nudge · Delete hides all · Shift+click to add/remove · Esc to deselect.',
@@ -136,22 +144,20 @@
     if (document.querySelector('.rvw-open-editor')) return;
     var style = document.createElement('style');
     style.className = 'rvw-launcher-style';
-    style.textContent = '.rvw-open-editor{position:fixed;z-index:99990;display:flex;align-items:center;gap:8px;' +
-      'height:36px;padding:0 12px;border:none;border-radius:8px;background:#0d99ff;color:#fff;' +
-      'font:700 12px Inter,Segoe UI,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.22);cursor:pointer}' +
-      '.rvw-open-editor:hover{background:#0b87e0}.rvw-open-editor svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}' +
-      '.rvw-launcher-modal{position:fixed;z-index:99991;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.45);font-family:Inter,Segoe UI,system-ui,sans-serif}' +
-      '.rvw-launcher-card{width:min(560px,calc(100vw - 32px));border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#202020;color:#f5f5f5;box-shadow:0 22px 70px rgba(0,0,0,.42);padding:18px}' +
-      '.rvw-launcher-card h2{margin:0 0 8px;font-size:16px;line-height:1.25}.rvw-launcher-card p{margin:0 0 14px;color:#b8b8b8;font-size:13px;line-height:1.5}' +
-      '.rvw-launcher-card code{display:block;white-space:pre-wrap;word-break:break-word;background:#111;border:1px solid #3a3a3a;border-radius:8px;padding:12px;color:#d8ecff;font-size:12px;line-height:1.45}' +
-      '.rvw-launcher-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.rvw-launcher-actions button{height:34px;border:1px solid #454545;border-radius:7px;background:#2d2d2d;color:#f5f5f5;padding:0 12px;font:700 12px Inter,Segoe UI,system-ui,sans-serif;cursor:pointer}.rvw-launcher-actions .rvw-primary{background:#0d99ff;border-color:#0d99ff}' +
+    style.textContent = '.rvw-open-editor{position:fixed;z-index:99990;display:flex;align-items:center;gap:7px;' +
+      'height:28px;padding:0 9px;border:1px solid rgba(255,255,255,.22);border-radius:999px;background:rgba(30,30,30,.72);color:#f5f5f5;' +
+      'font:700 10px Inter,Segoe UI,system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.16);cursor:pointer;backdrop-filter:blur(8px)}' +
+      '.rvw-open-editor:hover{background:rgba(30,30,30,.9)}.rvw-open-editor svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8}' +
+      '.rvw-open-editor::before{content:"";width:7px;height:7px;border-radius:50%;background:#8a8a8a;box-shadow:0 0 0 3px rgba(138,138,138,.16)}' +
+      '.rvw-open-editor.rvw-online{background:rgba(20,94,54,.78);border-color:rgba(83,214,137,.42)}.rvw-open-editor.rvw-online::before{background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.18)}' +
+      '.rvw-open-editor.rvw-offline{background:rgba(58,58,58,.68);border-color:rgba(255,255,255,.18)}.rvw-open-editor.rvw-offline::before{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.18)}' +
       '@media (max-width:1199px){.rvw-open-editor{display:none}}@media print{.rvw-open-editor{display:none}}';
     document.head.appendChild(style);
     var btn = document.createElement('button');
     btn.className = 'rvw-open-editor';
     btn.type = 'button';
     btn.title = T.openEditorHint;
-    btn.innerHTML = '<svg viewBox="0 0 16 16"><path d="M3 13h3.5L13 6.5 9.5 3 3 9.5z"/><path d="M8.8 3.7l3.5 3.5"/></svg><span>' + T.openEditor + '</span>';
+    btn.innerHTML = '<svg viewBox="0 0 16 16"><path d="M3 13h3.5L13 6.5 9.5 3 3 9.5z"/><path d="M8.8 3.7l3.5 3.5"/></svg><span>' + T.startBackendLoading + '</span>';
     function place() {
       var r = frame.getBoundingClientRect();
       btn.style.left = Math.round(r.right + 16) + 'px';
@@ -180,22 +186,20 @@
       var file = fileUrlToPath(location.href.split('#')[0]);
       return 'python "' + script + '" "' + file + '"';
     }
-    function showLauncherHelp(command) {
-      var modal = document.createElement('div');
-      modal.className = 'rvw-launcher-modal';
-      modal.innerHTML = '<div class="rvw-launcher-card"><h2>' + T.startBackendTitle + '</h2>' +
-        '<p>' + T.startBackendHint + '</p><code>' + command.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code>' +
-        '<div class="rvw-launcher-actions"><button type="button" data-close="1">' + T.startBackendClose + '</button>' +
-        '<button type="button" class="rvw-primary" data-copy="1">' + T.startBackendCopy + '</button></div></div>';
-      modal.onclick = function (ev) {
-        if (ev.target === modal || ev.target.getAttribute('data-close')) modal.remove();
-        if (ev.target.getAttribute('data-copy')) {
-          try { navigator.clipboard.writeText(command); ev.target.textContent = T.startBackendCopied; } catch (err) { /* ignore */ }
-        }
-      };
-      document.body.appendChild(modal);
+    var serverPort = null, serverChecked = false;
+    function setLauncherState(state, text, title) {
+      btn.classList.toggle('rvw-online', state === 'online');
+      btn.classList.toggle('rvw-offline', state === 'offline');
+      btn.querySelector('span').textContent = text;
+      btn.title = title || T.openEditorHint;
     }
-    function findServerThenOpen() {
+    function copyOfflineCommand() {
+      var cmd = reviewCommand();
+      try { navigator.clipboard.writeText(cmd); } catch (err) { /* ignore */ }
+      setLauncherState('offline', T.editorCopied, cmd);
+      setTimeout(function () { setLauncherState('offline', T.editorOffline, T.editorOfflineHint + '\n' + cmd); }, 1200);
+    }
+    function findServerThenOpen(openWhenOnline) {
       var file = fileUrlToPath(location.href.split('#')[0]);
       var dir = normPath(dirname(file));
       var name = basename(file);
@@ -210,13 +214,18 @@
       })).then(function (matches) {
         var port = matches.filter(Boolean)[0];
         if (port) {
-          location.href = 'http://127.0.0.1:' + port + '/' + encodeURIComponent(name) + '#review';
+          serverPort = port;
+          serverChecked = true;
+          setLauncherState('online', T.editorOnline, T.openEditorHint);
+          if (openWhenOnline) location.href = 'http://127.0.0.1:' + port + '/' + encodeURIComponent(name) + '#review';
           return;
         }
-        showLauncherHelp(reviewCommand());
+        serverPort = null;
+        serverChecked = true;
+        setLauncherState('offline', T.editorOffline, T.editorOfflineHint + '\n' + reviewCommand());
+        if (openWhenOnline) copyOfflineCommand();
       }).finally(function () {
         btn.disabled = false;
-        btn.querySelector('span').textContent = T.openEditor;
       });
     }
     btn.onclick = function () {
@@ -225,12 +234,20 @@
         location.reload();
         return;
       }
-      findServerThenOpen();
+      if (serverPort) {
+        var name = basename(fileUrlToPath(location.href.split('#')[0]));
+        location.href = 'http://127.0.0.1:' + serverPort + '/' + encodeURIComponent(name) + '#review';
+        return;
+      }
+      if (serverChecked) copyOfflineCommand();
+      else findServerThenOpen(true);
     };
     document.body.appendChild(btn);
     place();
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
+    if (location.protocol.indexOf('http') === 0) setLauncherState('online', T.editorOnline, T.openEditorHint);
+    else findServerThenOpen(false);
   }
   if (!wantsReview) {
     installReviewLauncher();
