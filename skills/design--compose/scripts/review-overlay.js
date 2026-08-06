@@ -303,6 +303,8 @@
     font:700 11px Inter,'Segoe UI',sans-serif;cursor:pointer;}
   .rvw-ai-note-save{background:#0d99ff;color:#fff;}
   .rvw-ai-note-save:hover{background:#0b87e0;}
+  .rvw-ai-note-save.rvw-saved{background:#1f9d55;color:#fff;}
+  .rvw-ai-note-save.rvw-saved:hover{background:#1f9d55;}
   .rvw-ai-note-clear{background:#3a3a3a;color:#cfcfcf;}
   .rvw-ai-note-clear:hover{background:#464646;}
   .rvw-elname{padding:10px 14px 0;font-weight:600;color:#fff;font-size:12px;word-break:break-word;}
@@ -817,6 +819,18 @@
     else changes.element_feedback[key] = { target: targetOf(el, 'selected'), note: note };
     updateCount();
   }
+  function setFeedbackSaveButtonState(btn, saved) {
+    if (!btn) return;
+    btn.textContent = saved ? T.savedFeedback : T.saveFeedback;
+    btn.disabled = !!saved;
+    btn.classList.toggle('rvw-saved', !!saved);
+  }
+  function refreshFeedbackSaveState(box) {
+    var inp = box && box.querySelector('#rvw-ai-feedback');
+    var btn = box && box.querySelector('.rvw-ai-note-save');
+    if (!inp || !btn) return;
+    setFeedbackSaveButtonState(btn, inp.value.trim() === (inp.dataset.rvwSavedValue || ''));
+  }
   function ensureAiNote() {
     if (aiNote) return aiNote;
     aiNote = document.createElement('div');
@@ -833,9 +847,8 @@
     writeElementFeedback(aiNoteTarget, inp.value.trim());
     var saveBtn = aiNote.querySelector('.rvw-ai-note-save');
     if (showStatus && saveBtn) {
-      saveBtn.textContent = T.savedFeedback;
-      clearTimeout(saveBtn._rvwTimer);
-      saveBtn._rvwTimer = setTimeout(function () { saveBtn.textContent = T.saveFeedback; }, 900);
+      inp.dataset.rvwSavedValue = inp.value.trim();
+      setFeedbackSaveButtonState(saveBtn, true);
     }
   }
   function hideElementFeedbackBubble() {
@@ -881,8 +894,15 @@
       '<span><button class="rvw-ai-note-clear" type="button">' + T.clearFeedback + '</button> ' +
       '<button class="rvw-ai-note-save" type="button">' + T.saveFeedback + '</button></span></div>';
     var inp = box.querySelector('textarea');
-    inp.addEventListener('input', function () { writeElementFeedback(el, this.value.trim()); });
-    inp.addEventListener('compositionend', function () { writeElementFeedback(el, this.value.trim()); });
+    inp.dataset.rvwSavedValue = inp.value.trim();
+    inp.addEventListener('input', function () {
+      writeElementFeedback(el, this.value.trim());
+      refreshFeedbackSaveState(box);
+    });
+    inp.addEventListener('compositionend', function () {
+      writeElementFeedback(el, this.value.trim());
+      refreshFeedbackSaveState(box);
+    });
     inp.addEventListener('keydown', function (ev) {
       if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
         ev.preventDefault();
@@ -898,8 +918,10 @@
     if (clearBtn) clearBtn.addEventListener('click', function () {
       inp.value = '';
       writeElementFeedback(el, '');
+      refreshFeedbackSaveState(box);
       inp.focus();
     });
+    refreshFeedbackSaveState(box);
     positionElementFeedbackBubble();
   }
   function frameRect() { return frame.getBoundingClientRect(); }
