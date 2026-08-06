@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.1.9
+version: 1.2.0
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -133,11 +133,19 @@ python .agent/skills/design--compose/scripts/fetch-fonts.py \
    **Asset có sẵn (ảnh sản phẩm đã tách nền)** — kiểm tra alpha thật bằng Pillow (4 góc alpha=0) rồi trim + dùng thẳng, bỏ qua rmbg. Hai việc PHẢI tự dựng vì ảnh tách nền không mang theo (kiểm chứng case iPhone 2026-08-05):
    - **Bóng/phản chiếu**: `drop-shadow` theo hướng sáng của nền; nền tối premium → thêm phản chiếu sàn: slot thứ 2 cùng ảnh, **PHẢI cùng kích thước slot gốc** (slot thấp hơn sẽ bị `object-fit: contain` co nhỏ bóng — feedback case iPhone), ảnh `object-position: bottom` + `scaleY(-1)`, cắt phần hiện bằng `mask-image` fade + opacity ~0.16. ⚠️ mask áp TRƯỚC transform nên bị lật theo — muốn fade xuống dưới (visual) thì gradient phải "to top".
    - **Hòa ánh sáng**: ảnh studio thường lệch tông với nền — grade per-slot (`grade-warm/cool`) cho khớp.
-7. Element cần tách nền → `rmbg <img> -m modnet -o <out>.png` (skill `auto--media`), rồi hậu xử lý (kiểm chứng 2026-08-05):
-   - **Model mặc định là `modnet`, KHÔNG phải `briaai`**: kiểm chứng 4/4 lần trong 1 session, `briaai` ra alpha loang lổ khắp khung hình (~14-19% pixel alpha lửng lơ — không phải mép mềm mà là noise thật) kể cả khi chủ thể tương phản tốt với nền, không riêng case đồng tông. `modnet` luôn sạch hơn hẳn (~8-10% alpha lửng — đúng nghĩa mép mềm tự nhiên). Chỉ thử `briaai` nếu modnet cho kết quả tệ hơn ở case cụ thể nào đó. Đọc lại ảnh bằng vision sau rmbg để xác nhận trước khi tốn công lọc nhiễu.
-   - **Lọc nhiễu alpha (bắt buộc)**: briaai để lại mảng alpha loang lổ khắp ảnh — chạy `python .agent/skills/design--compose/scripts/filter-alpha-noise.py <asset>.png` (giữ khối liền mạch lớn nhất qua `scipy.ndimage.label`, dilate 3px giữ mép mềm, mảng rời rạc set alpha = 0).
-   - **Trim sát vật thể (bắt buộc — quy tắc chuẩn mục 6)**: chạy `trim-alpha.py` sau khi lọc nhiễu; nhờ slot-based nên trim không ảnh hưởng tọa độ overlay, nhưng quyết định vật thể fill khít slot và bóng/floor sát chân.
+7. Element cần tách nền:
+   - **Nếu asset được gen trên nền phẳng đồng nhất** (`isolated on solid plain background`) → ưu tiên connected-background keying, KHÔNG mặc định `rmbg`:
+     ```bash
+     python .agent/skills/design--compose/scripts/extract-solid-bg-alpha.py <asset>.png -o <asset>-alpha.png
+     python .agent/skills/design--compose/scripts/trim-alpha.py <asset>-alpha.png
+     ```
+     Lý do: với nền phẳng, segmentation model như `modnet` có thể ăn alpha vào chủ thể hoặc làm vùng lông/kem/cam bán trong suốt; khi đặt lên nền coral/đậm sẽ thấy "lem" màu xuyên vào thân. Connected-background keying chỉ xóa vùng nền có màu gần 4 góc **và nối với mép ảnh**, nên giữ lõi chủ thể opaque tốt hơn, chỉ feather nhẹ ở viền.
+   - **Nếu nền không phẳng hoặc object hòa vào nền phức tạp** → dùng `rmbg <img> -m modnet -o <out>.png` (skill `auto--media`), rồi hậu xử lý:
+     - **Model mặc định là `modnet`, KHÔNG phải `briaai`**: kiểm chứng 4/4 lần trong 1 session, `briaai` ra alpha loang lổ khắp khung hình (~14-19% pixel alpha lửng lơ — không phải mép mềm mà là noise thật) kể cả khi chủ thể tương phản tốt với nền, không riêng case đồng tông. `modnet` luôn sạch hơn hẳn (~8-10% alpha lửng — đúng nghĩa mép mềm tự nhiên). Chỉ thử `briaai` nếu modnet cho kết quả tệ hơn ở case cụ thể nào đó. Đọc lại ảnh bằng vision sau rmbg để xác nhận trước khi tốn công lọc nhiễu.
+     - **Lọc nhiễu alpha (bắt buộc)**: briaai để lại mảng alpha loang lổ khắp ảnh — chạy `python .agent/skills/design--compose/scripts/filter-alpha-noise.py <asset>.png` (giữ khối liền mạch lớn nhất qua `scipy.ndimage.label`, dilate 3px giữ mép mềm, mảng rời rạc set alpha = 0).
+     - **Trim sát vật thể (bắt buộc — quy tắc chuẩn mục 6)**: chạy `trim-alpha.py` sau khi lọc nhiễu; nhờ slot-based nên trim không ảnh hưởng tọa độ overlay, nhưng quyết định vật thể fill khít slot và bóng/floor sát chân.
    - Prompt element: nền PHẲNG đồng nhất, tông NGƯỢC với palette chủ thể (chủ thể sáng/trắng → xám trung tính "#B0B0B0"–"#D0D0D0"; chủ thể tối → xám sáng "#EDEDED"; mặc định "#EDEDED"; CẤM nền cùng tông chủ thể, CẤM chroma xanh lá/magenta — gen model bleed màu vào mép lông/tóc), "soft contact shadow only". Lý do: rmbg là segmentation ngữ nghĩa chứ không phải chroma-key — cần tương phản chủ thể–nền, không cần màu key. Codex image_gen KHÔNG xuất alpha trực tiếp.
+   - **QA alpha bắt buộc**: đặt asset đã tách lên nền tương phản với thiết kế thật (ví dụ coral/đậm) trước khi compose. Nếu thấy halo xám, thân chủ thể bị nền xuyên màu, hoặc lông/viền bị mất → đổi ngưỡng `extract-solid-bg-alpha.py` / regen nền phẳng hơn; không chữa bằng blur/feather lớn.
 
 ## Bước 2.5 — Adjustment layers (tùy chọn, non-destructive)
 

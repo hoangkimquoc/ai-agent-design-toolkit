@@ -73,8 +73,14 @@ Khi có reference screenshot app:
 ### B — Gen element + tách nền (skill `design--cover-image` + `auto--media`)
 - Chỉ chạy khi thiết kế cần element rời (linh vật, sản phẩm, icon). Prompt: chủ thể đơn lẻ, "isolated on solid plain background", cùng art_direction block.
 - Nếu đang ở Codex app/chat: dùng trực tiếp tool `image_gen` để tạo element. Nếu không có native image tool thì dùng Codex CLI/generator khác.
-- Tách nền bằng RMBG (`auto--media`) → PNG trong suốt `assets/element-{slug}.png`.
-- Cạnh mềm (tóc/khói/glow) tách xấu → gen lại với nền phẳng hơn, tối đa 2 vòng rồi hỏi user.
+- Nếu prompt đã dùng nền phẳng đồng nhất, tách nền bằng `design--compose/scripts/extract-solid-bg-alpha.py` trước:
+  ```bash
+  python .agent/skills/design--compose/scripts/extract-solid-bg-alpha.py <asset>.png -o <asset>-alpha.png
+  python .agent/skills/design--compose/scripts/trim-alpha.py <asset>-alpha.png
+  ```
+  Lý do: connected-background keying chỉ xóa nền nối với mép ảnh, ít làm lông/viền/badge 3D bị bán trong suốt hơn segmentation.
+- Chỉ dùng RMBG (`auto--media`, `rmbg -m modnet`) khi nền không phẳng hoặc keying thất bại → PNG trong suốt `assets/element-{slug}.png`.
+- Cạnh mềm (tóc/khói/glow) tách xấu, halo xám, hoặc nền xuyên màu vào chủ thể → thử điều chỉnh `--threshold`/`--feather` của `extract-solid-bg-alpha.py`, hoặc gen lại với nền phẳng tương phản hơn, tối đa 2 vòng rồi hỏi user.
 - Với app onboarding/service finder, các object tối thiểu thường là: `phone/app surface`, `pet/mascot`, `badge/icon nhóm dịch vụ`. Gen prompt riêng cho từng role; không gom tất cả vào một prompt tổng.
 
 ### C — Ghép lớp (skill `design--compose`)
