@@ -53,8 +53,9 @@
       secPosition: 'Vị trí', secLayout: 'Kích thước', secAppearance: 'Hiển thị', secTypography: 'Chữ',
       secAiFeedback: 'Feedback cho AI',
       aiFeedback: 'Ghi chú về element này',
-      aiFeedbackHint: 'Comment này tự gắn với element đang chọn và sẽ nằm trong JSON xuất cho AI.',
+      aiFeedbackHint: 'Chọn element rồi nhập ngay trong bubble dưới element. Feedback sẽ đi vào JSON xuất cho AI.',
       aiFeedbackPlaceholder: 'Ví dụ: Làm icon này lớn hơn, đổi màu card này, đưa phần tử này lên trên...',
+      aiFeedbackBubbleHint: 'Tự gắn với element đang chọn',
       attachedTo: 'Gắn với',
       notePoint: 'Ghi chú cho vị trí này...', noteRegion: 'Ghi chú cho vùng này...',
       cancel: 'Hủy', saveNote: 'Lưu',
@@ -99,8 +100,9 @@
       secPosition: 'Position', secLayout: 'Layout', secAppearance: 'Appearance', secTypography: 'Typography',
       secAiFeedback: 'AI feedback',
       aiFeedback: 'Note about this element',
-      aiFeedbackHint: 'This comment is bound to the selected element and exported for the AI agent.',
+      aiFeedbackHint: 'Select an element, then write in the bubble under it. Feedback is exported for the AI agent.',
       aiFeedbackPlaceholder: 'Example: Make this icon larger, recolor this card, bring this item forward...',
+      aiFeedbackBubbleHint: 'Bound to selected element',
       attachedTo: 'Attached to',
       notePoint: 'Note for this spot...', noteRegion: 'Note for this region...',
       cancel: 'Cancel', saveNote: 'Save',
@@ -232,7 +234,7 @@
   /* ===== Hit-testing tổng quát — overlay KHÔNG phụ thuộc tên class của design =====
      (fix 2026-08-05: design ngoài template gốc như pawos có class tùy ý → selector
      hard-code làm click xuyên qua và không kéo được element trong group lạ) */
-  var OVERLAY_UI = '.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-pin,.rvw-region,.rvw-selbox,.rvw-hoverbox,.rvw-guide,.rvw-marquee';
+  var OVERLAY_UI = '.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-ai-note,.rvw-pin,.rvw-region,.rvw-selbox,.rvw-hoverbox,.rvw-guide,.rvw-marquee';
   function classOf(el) { return (el.getAttribute && el.getAttribute('class')) || ''; }
   function isLayerEl(el) { return /(^| )layer-/.test(classOf(el)); }
   function isPassThroughEl(el) {
@@ -355,9 +357,23 @@
   .rvw-field input[type=range]{padding:0;border:none;background:transparent;accent-color:#0d99ff;}
   .rvw-field input:focus,.rvw-field textarea:focus{border-color:#0d99ff;}
   .rvw-field textarea{resize:vertical;min-height:56px;line-height:1.4;}
-  .rvw-feedback textarea{min-height:74px;}
+  .rvw-feedback-status{color:#a8b3c7;font-size:10px;line-height:1.35;word-break:break-word;}
   .rvw-feedback-target{color:#a8b3c7;font-size:10px;line-height:1.35;margin-top:2px;word-break:break-word;}
   .rvw-feedback-help{color:#777;font-size:10px;line-height:1.4;margin-top:2px;}
+  .rvw-ai-note{position:fixed;z-index:100001;width:300px;max-width:calc(100vw - 32px);
+    border:1px solid rgba(13,153,255,.7);border-radius:8px;background:#2b2b2b;color:#e8e8e8;
+    box-shadow:0 14px 38px rgba(0,0,0,.38);padding:8px;box-sizing:border-box;}
+  .rvw-ai-note::before{content:'';position:absolute;top:-7px;left:24px;width:12px;height:12px;
+    background:#2b2b2b;border-left:1px solid rgba(13,153,255,.7);border-top:1px solid rgba(13,153,255,.7);
+    transform:rotate(45deg);}
+  .rvw-ai-note.rvw-above::before{top:auto;bottom:-7px;transform:rotate(225deg);}
+  .rvw-ai-note-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;
+    color:#fff;font-size:11px;font-weight:700;}
+  .rvw-ai-note-meta{color:#95a6bf;font-size:10px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rvw-ai-note textarea{display:block;width:100%;min-height:62px;max-height:136px;box-sizing:border-box;
+    resize:vertical;border:1px solid #4b4b4b;border-radius:6px;background:#171717;color:#f0f0f0;
+    padding:7px 8px;font:400 12px Inter,'Segoe UI',sans-serif;line-height:1.4;outline:none;}
+  .rvw-ai-note textarea:focus{border-color:#0d99ff;}
   .rvw-elname{padding:10px 14px 0;font-weight:600;color:#fff;font-size:12px;word-break:break-word;}
   .rvw-elmeta{padding:4px 14px 10px;color:#8f8f8f;font-size:10px;line-height:1.4;word-break:break-word;}
   .rvw-layers{position:fixed;top:48px;left:0;bottom:0;width:220px;z-index:99999;background:#2c2c2c;
@@ -706,7 +722,7 @@
   });
   document.addEventListener('mousedown', function (e) {
     if (!(spaceDown || e.button === 1)) return;
-    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note')) return;
+    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-ai-note')) return;
     e.preventDefault();
     panning = { sx: e.clientX, sy: e.clientY, x0: panX, y0: panY };
     document.body.classList.add('rvw-panning');
@@ -722,7 +738,7 @@
   });
   // Wheel: Ctrl = zoom neo tại con trỏ · thường = pan dọc · Shift = pan ngang
   document.addEventListener('wheel', function (e) {
-    if (e.target.closest('.rvw-panel,.rvw-layers,.rvw-note')) return; // panel giữ scroll gốc
+    if (e.target.closest('.rvw-panel,.rvw-layers,.rvw-note,.rvw-ai-note')) return; // panel/bubble giữ scroll gốc
     e.preventDefault();
     if (e.ctrlKey) {
       var oldZoom = zoom;
@@ -859,6 +875,66 @@
     });
     return best ? targetOf(best.el, 'region-overlap') : null;
   }
+  var aiNote = null;
+  function writeElementFeedback(el, note) {
+    var key = feedbackKeyFor(el);
+    if (!note) delete changes.element_feedback[key];
+    else changes.element_feedback[key] = { target: targetOf(el, 'selected'), note: note };
+    updateCount();
+  }
+  function ensureAiNote() {
+    if (aiNote) return aiNote;
+    aiNote = document.createElement('div');
+    aiNote.className = 'rvw-ai-note rvw';
+    document.body.appendChild(aiNote);
+    aiNote.addEventListener('mousedown', function (ev) { ev.stopPropagation(); });
+    aiNote.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    return aiNote;
+  }
+  function hideElementFeedbackBubble() {
+    if (aiNote) aiNote.style.display = 'none';
+  }
+  function positionElementFeedbackBubble() {
+    if (!aiNote || aiNote.style.display === 'none' || !selected || extraSel.length || isLayerEl(selected)) return;
+    var r = selected.getBoundingClientRect();
+    var w = Math.min(320, Math.max(240, Math.min(r.width, window.innerWidth - 32)));
+    aiNote.style.width = w + 'px';
+    var panelW = panel ? panel.offsetWidth : 248;
+    var minLeft = (layersPanel ? layersPanel.offsetWidth : 220) + 12;
+    var maxLeft = window.innerWidth - panelW - w - 18;
+    var left = Math.max(minLeft, Math.min(maxLeft, r.left + (r.width - w) / 2));
+    if (maxLeft < minLeft) left = Math.max(12, Math.min(window.innerWidth - w - 12, r.left));
+    aiNote.style.left = left + 'px';
+    aiNote.style.display = 'block';
+    var h = aiNote.offsetHeight || 112;
+    var below = r.bottom + 10;
+    var above = r.top - h - 10;
+    var useAbove = below + h > window.innerHeight - 12 && above > 56;
+    aiNote.classList.toggle('rvw-above', useAbove);
+    aiNote.style.top = (useAbove ? above : Math.min(below, window.innerHeight - h - 12)) + 'px';
+  }
+  function renderElementFeedbackBubble() {
+    if (!selected || extraSel.length || isLayerEl(selected) || !document.contains(selected)) {
+      hideElementFeedbackBubble();
+      return;
+    }
+    var el = selected;
+    var key = feedbackKeyFor(el);
+    var fb = changes.element_feedback[key] || { note: '' };
+    var target = targetOf(el, 'selected');
+    var box = ensureAiNote();
+    box.style.display = 'block';
+    box.innerHTML = '<div class="rvw-ai-note-head"><span>' + T.secAiFeedback + '</span>' +
+      '<span class="rvw-ai-note-meta">' + escapeHTML(target ? target.label : shortName(el)) + '</span></div>' +
+      '<textarea id="rvw-ai-feedback" placeholder="' + escapeHTML(T.aiFeedbackPlaceholder) + '">' + escapeHTML(fb.note || '') + '</textarea>' +
+      '<div class="rvw-feedback-help">' + T.aiFeedbackBubbleHint + '</div>';
+    var inp = box.querySelector('textarea');
+    inp.addEventListener('input', function () { writeElementFeedback(el, this.value.trim()); });
+    inp.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') { ev.preventDefault(); this.blur(); }
+    });
+    positionElementFeedbackBubble();
+  }
   function frameRect() { return frame.getBoundingClientRect(); }
   function pctX(px) { return (px / frameRect().width * 100); }
   function pctY(px) { return (px / frameRect().height * 100); }
@@ -916,12 +992,14 @@
       document.body.appendChild(b);
       extraBoxes.push(b);
     });
+    positionElementFeedbackBubble();
   }
   window.addEventListener('scroll', refreshBoxes, true);
   window.addEventListener('resize', refreshBoxes);
 
   function renderPanel() {
     if (!selected) {
+      hideElementFeedbackBubble();
       panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-empty">' + T.emptyHint + '</div>';
       return;
     }
@@ -929,6 +1007,7 @@
     var x = pctX(r.left - fr.left).toFixed(1), y = pctY(r.top - fr.top).toFixed(1);
     var w = pctX(r.width).toFixed(1), h = pctY(r.height).toFixed(1);
     if (extraSel.length) {
+      hideElementFeedbackBubble();
       panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-elname">' + (extraSel.length + 1) + T.multiSel + '</div>' +
         '<div class="rvw-empty">' + T.multiHint + '</div>';
       return;
@@ -936,6 +1015,7 @@
     var st = getState(el);
     var op = Math.round((parseFloat(getComputedStyle(el).opacity) || 1) * 100);
     if (isLayerEl(el)) {
+      hideElementFeedbackBubble();
       panel.innerHTML = '<h3>' + T.props + '</h3><div class="rvw-elname">' + friendlyName(el) + '</div>' +
         '<div class="rvw-elmeta">' + T.layerContainerHint + '<br>' + debugName(el) + '</div>';
       return;
@@ -943,8 +1023,6 @@
     // Nhóm theo section kiểu Figma sidebar (Position / Layout / Appearance / Typography)
     if (st.ratioLocked === undefined) st.ratioLocked = true;
     var target = targetOf(el, 'selected');
-    var fbKey = feedbackKeyFor(el);
-    var fb = changes.element_feedback[fbKey] || { note: '' };
     var html = '<h3>' + T.props + '</h3><div class="rvw-elname">' + shortName(el) + '</div>' +
       '<div class="rvw-elmeta">' + debugName(el) + '</div>' +
       '<div class="rvw-section"><div class="rvw-sectitle">' + T.secPosition + '</div><div class="rvw-fields">' +
@@ -1016,12 +1094,12 @@
         '</div></div>';
     }
     html += '<div class="rvw-section"><div class="rvw-sectitle">' + T.secAiFeedback + '</div><div class="rvw-fields">' +
-      '<div class="rvw-field rvw-wide rvw-feedback"><label>' + T.aiFeedback + '</label>' +
-      '<textarea id="rvw-ai-feedback" placeholder="' + escapeHTML(T.aiFeedbackPlaceholder) + '">' + escapeHTML(fb.note || '') + '</textarea>' +
-      '<div class="rvw-feedback-target">' + T.attachedTo + ': ' + escapeHTML(target ? target.label : shortName(el)) + '</div>' +
+      '<div class="rvw-field rvw-wide rvw-feedback">' +
+      '<div class="rvw-feedback-status">' + T.attachedTo + ': ' + escapeHTML(target ? target.label : shortName(el)) + '</div>' +
       '<div class="rvw-feedback-help">' + T.aiFeedbackHint + '</div></div>' +
       '</div></div>';
     panel.innerHTML = html;
+    renderElementFeedbackBubble();
     Array.prototype.forEach.call(panel.querySelectorAll('input,textarea'), function (inp) {
       inp.dataset.rvwInitial = inp.value;
       inp.addEventListener('keydown', function (ev) {
@@ -1308,14 +1386,6 @@
       changes.texts[sel].after = this.value.trim();
       updateCount(); refreshBoxes();
     }.bind(document.getElementById('rvw-text')));
-    var aiFeedback = document.getElementById('rvw-ai-feedback');
-    if (aiFeedback) aiFeedback.addEventListener('input', function () {
-      var note = this.value.trim();
-      var key = feedbackKeyFor(el);
-      if (!note) delete changes.element_feedback[key];
-      else changes.element_feedback[key] = { target: targetOf(el, 'selected'), note: note };
-      updateCount();
-    });
   }
 
   /* Di chuyển trong hệ tọa độ của CHÍNH element (px, chia zoom) — không dùng % của
@@ -1502,7 +1572,7 @@
     if (mode !== 'select' || drag || resizing) { hoverbox.style.display = 'none'; }
     else {
       var t = null;
-      if (!(e.target.closest && e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-pin'))) {
+      if (!(e.target.closest && e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-ai-note,.rvw-pin'))) {
         var dh = pickAtPoint(e.clientX, e.clientY);
         if (dh) {
           var mh = selectionAll();
@@ -1595,7 +1665,7 @@
 
   document.addEventListener('mousedown', function (e) {
     if (spaceDown || e.button === 1) return; // đang pan canvas
-    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note')) return;
+    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-layers,.rvw-note,.rvw-ai-note')) return;
     if (e.target.classList.contains('rot')) {
       if (!selected || isLayerEl(selected)) return;
       e.preventDefault();
@@ -1732,7 +1802,7 @@
   // đã chọn đúng text element rồi thì double-click = vào chế độ sửa chữ
   document.addEventListener('dblclick', function (e) {
     if (mode !== 'select') return;
-    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-note,.rvw-pin,.rvw-region')) return;
+    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-note,.rvw-ai-note,.rvw-pin,.rvw-region')) return;
     e.preventDefault();
     var deep = pickAtPoint(e.clientX, e.clientY);
     if (!deep) return;
@@ -1812,7 +1882,7 @@
   document.addEventListener('mousedown', function (e) {
     if (mode !== 'comment') return;
     if (spaceDown || e.button === 1) return; // đang pan canvas
-    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-note,.rvw-pin,.rvw-region')) return;
+    if (e.target.closest('.rvw-topbar,.rvw-panel,.rvw-note,.rvw-ai-note,.rvw-pin,.rvw-region')) return;
     var fr = frameRect();
     if (e.clientX < fr.left || e.clientX > fr.right || e.clientY < fr.top || e.clientY > fr.bottom) return;
     e.preventDefault();
@@ -1865,7 +1935,7 @@
       viewer.innerHTML = '<div class="rvw-note-head">' + T.commentN + p.dataset.n + '</div><div class="rvw-note-body"></div>';
       viewer.querySelector('.rvw-note-body').textContent = p.dataset.note;
       document.body.appendChild(viewer);
-    } else if (!e.target.closest('.rvw-note')) hideNoteView();
+    } else if (!e.target.closest('.rvw-note,.rvw-ai-note')) hideNoteView();
   });
 
   /* ================= keyboard ================= */
