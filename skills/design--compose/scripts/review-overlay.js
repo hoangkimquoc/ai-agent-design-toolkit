@@ -5,9 +5,9 @@
  * compose-screenshot.py chụp đúng artboard nên không dính launcher/editor UI.
  *
  * Tính năng:
- *  - Select (V): click chọn element → selection box + properties panel (X/Y/W %, font-size, nội dung)
+ *  - Select (V): click chọn element → selection box + properties panel (X/Y/W %, font-size, nội dung, AI feedback)
  *  - Kéo thả để dời vị trí, mũi tên để nudge (Shift = bước lớn), double-click sửa chữ inline
- *  - Comment (C): click đặt pin đánh số + ghi chú
+ *  - Comment (C): click đặt pin đánh số + ghi chú, tự gắn target element khi có thể
  *  - Export: tải feedback JSON + copy clipboard → gửi lại Claude áp vào source
  */
 (function () {
@@ -17,7 +17,7 @@
   if (!frame) return;
 
   /* ================= state ================= */
-  var changes = { texts: {}, moves: {}, props: {}, pins: [] };
+  var changes = { texts: {}, moves: {}, props: {}, pins: [], element_feedback: {} };
   var mode = 'select';           // 'select' | 'comment'
   var selected = null;
   var pinCount = 0;
@@ -51,6 +51,11 @@
       layerContainerHint: 'Đây là layer container. Chọn một item con trong Layers hoặc double-click trên canvas để sửa ảnh/chữ cụ thể.',
       align: 'Căn chữ', alLeft: 'Trái', alCenter: 'Giữa', alRight: 'Phải',
       secPosition: 'Vị trí', secLayout: 'Kích thước', secAppearance: 'Hiển thị', secTypography: 'Chữ',
+      secAiFeedback: 'Feedback cho AI',
+      aiFeedback: 'Ghi chú về element này',
+      aiFeedbackHint: 'Comment này tự gắn với element đang chọn và sẽ nằm trong JSON xuất cho AI.',
+      aiFeedbackPlaceholder: 'Ví dụ: Làm icon này lớn hơn, đổi màu card này, đưa phần tử này lên trên...',
+      attachedTo: 'Gắn với',
       notePoint: 'Ghi chú cho vị trí này...', noteRegion: 'Ghi chú cho vùng này...',
       cancel: 'Hủy', saveNote: 'Lưu',
       tipSelect: 'Chọn và di chuyển (V)', tipComment: 'Đặt ghi chú (C)',
@@ -92,6 +97,11 @@
       layerContainerHint: 'This is a layer container. Select a child item in Layers or double-click the canvas to edit a specific image/text element.',
       align: 'Text align', alLeft: 'Left', alCenter: 'Center', alRight: 'Right',
       secPosition: 'Position', secLayout: 'Layout', secAppearance: 'Appearance', secTypography: 'Typography',
+      secAiFeedback: 'AI feedback',
+      aiFeedback: 'Note about this element',
+      aiFeedbackHint: 'This comment is bound to the selected element and exported for the AI agent.',
+      aiFeedbackPlaceholder: 'Example: Make this icon larger, recolor this card, bring this item forward...',
+      attachedTo: 'Attached to',
       notePoint: 'Note for this spot...', noteRegion: 'Note for this region...',
       cancel: 'Cancel', saveNote: 'Save',
       tipSelect: 'Select & move (V)', tipComment: 'Add comment (C)',
@@ -345,6 +355,9 @@
   .rvw-field input[type=range]{padding:0;border:none;background:transparent;accent-color:#0d99ff;}
   .rvw-field input:focus,.rvw-field textarea:focus{border-color:#0d99ff;}
   .rvw-field textarea{resize:vertical;min-height:56px;line-height:1.4;}
+  .rvw-feedback textarea{min-height:74px;}
+  .rvw-feedback-target{color:#a8b3c7;font-size:10px;line-height:1.35;margin-top:2px;word-break:break-word;}
+  .rvw-feedback-help{color:#777;font-size:10px;line-height:1.4;margin-top:2px;}
   .rvw-elname{padding:10px 14px 0;font-weight:600;color:#fff;font-size:12px;word-break:break-word;}
   .rvw-elmeta{padding:4px 14px 10px;color:#8f8f8f;font-size:10px;line-height:1.4;word-break:break-word;}
   .rvw-layers{position:fixed;top:48px;left:0;bottom:0;width:220px;z-index:99999;background:#2c2c2c;
@@ -782,12 +795,77 @@
     var s = selectorOf(el);
     return s.length > 58 ? s.slice(0, 58) + '…' : s;
   }
+  function escapeHTML(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function slugifyName(s) {
+    return String(s || '').normalize('NFD').toLowerCase()
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 36) || 'element';
+  }
+  function ensureReviewId(el) {
+    if (!el || !el.setAttribute) return '';
+    var id = el.getAttribute('data-rvw-id');
+    if (id) return id;
+    var base = slugifyName(explicitName(el) || friendlyName(el) || selectorOf(el));
+    var idTry = base, n = 2;
+    while (frame.querySelector('[data-rvw-id="' + idTry + '"]')) idTry = base + '-' + (n++);
+    el.setAttribute('data-rvw-id', idTry);
+    return idTry;
+  }
+  function layerOf(el) {
+    var n = el;
+    while (n && n !== frame) {
+      if (isLayerEl(n)) return layerName(n);
+      n = n.parentElement;
+    }
+    return 'Frame';
+  }
+  function targetOf(el, confidence) {
+    if (!el || !inDesign(el) || isLayerEl(el)) return null;
+    var target = outerGroup(el) || el;
+    var r = target.getBoundingClientRect(), fr = frameRect();
+    return {
+      id: ensureReviewId(target),
+      selector: selectorOf(target),
+      label: friendlyName(target),
+      layer: layerOf(target),
+      confidence: confidence || 'selected',
+      bbox: {
+        x: +(((r.left - fr.left) / fr.width) * 100).toFixed(2) + '%',
+        y: +(((r.top - fr.top) / fr.height) * 100).toFixed(2) + '%',
+        w: +((r.width / fr.width) * 100).toFixed(2) + '%',
+        h: +((r.height / fr.height) * 100).toFixed(2) + '%'
+      }
+    };
+  }
+  function feedbackKeyFor(el) {
+    return ensureReviewId(el || selected) || selectorOf(el || selected);
+  }
+  function bestTargetForRegion(rect) {
+    var best = null;
+    topLevelElements().forEach(function (o) {
+      if (getComputedStyle(o).visibility === 'hidden') return;
+      var ro = o.getBoundingClientRect();
+      var ix = Math.max(0, Math.min(rect.right, ro.right) - Math.max(rect.left, ro.left));
+      var iy = Math.max(0, Math.min(rect.bottom, ro.bottom) - Math.max(rect.top, ro.top));
+      var area = ix * iy;
+      if (area > 0 && (!best || area > best.area)) best = { el: o, area: area };
+    });
+    return best ? targetOf(best.el, 'region-overlap') : null;
+  }
   function frameRect() { return frame.getBoundingClientRect(); }
   function pctX(px) { return (px / frameRect().width * 100); }
   function pctY(px) { return (px / frameRect().height * 100); }
   function updateCount() {
     var n = Object.keys(changes.texts).length + Object.keys(changes.moves).length +
-      Object.keys(changes.props).length + changes.pins.length;
+      Object.keys(changes.props).length + changes.pins.length +
+      Object.keys(changes.element_feedback).filter(function (k) { return changes.element_feedback[k].note; }).length;
     document.getElementById('rvw-count').textContent = n + ' ' + T.changes;
   }
   function isText(el) { return isTextEl(el); }
@@ -864,6 +942,9 @@
     }
     // Nhóm theo section kiểu Figma sidebar (Position / Layout / Appearance / Typography)
     if (st.ratioLocked === undefined) st.ratioLocked = true;
+    var target = targetOf(el, 'selected');
+    var fbKey = feedbackKeyFor(el);
+    var fb = changes.element_feedback[fbKey] || { note: '' };
     var html = '<h3>' + T.props + '</h3><div class="rvw-elname">' + shortName(el) + '</div>' +
       '<div class="rvw-elmeta">' + debugName(el) + '</div>' +
       '<div class="rvw-section"><div class="rvw-sectitle">' + T.secPosition + '</div><div class="rvw-fields">' +
@@ -931,9 +1012,15 @@
         '<button id="rvw-al-left" title="' + T.alLeft + '" class="' + (curAlign === 'left' ? 'rvw-on' : '') + '">' + ICONS.alignLeft + '</button>' +
         '<button id="rvw-al-center" title="' + T.alCenter + '" class="' + (curAlign === 'center' ? 'rvw-on' : '') + '">' + ICONS.alignCenter + '</button>' +
         '<button id="rvw-al-right" title="' + T.alRight + '" class="' + (curAlign === 'right' ? 'rvw-on' : '') + '">' + ICONS.alignRight + '</button></div>' +
-        '<div class="rvw-field rvw-wide"><label>' + T.content + '</label><textarea id="rvw-text">' + el.textContent.trim() + '</textarea></div>' +
+        '<div class="rvw-field rvw-wide"><label>' + T.content + '</label><textarea id="rvw-text">' + escapeHTML(el.textContent.trim()) + '</textarea></div>' +
         '</div></div>';
     }
+    html += '<div class="rvw-section"><div class="rvw-sectitle">' + T.secAiFeedback + '</div><div class="rvw-fields">' +
+      '<div class="rvw-field rvw-wide rvw-feedback"><label>' + T.aiFeedback + '</label>' +
+      '<textarea id="rvw-ai-feedback" placeholder="' + escapeHTML(T.aiFeedbackPlaceholder) + '">' + escapeHTML(fb.note || '') + '</textarea>' +
+      '<div class="rvw-feedback-target">' + T.attachedTo + ': ' + escapeHTML(target ? target.label : shortName(el)) + '</div>' +
+      '<div class="rvw-feedback-help">' + T.aiFeedbackHint + '</div></div>' +
+      '</div></div>';
     panel.innerHTML = html;
     Array.prototype.forEach.call(panel.querySelectorAll('input,textarea'), function (inp) {
       inp.dataset.rvwInitial = inp.value;
@@ -1221,6 +1308,14 @@
       changes.texts[sel].after = this.value.trim();
       updateCount(); refreshBoxes();
     }.bind(document.getElementById('rvw-text')));
+    var aiFeedback = document.getElementById('rvw-ai-feedback');
+    if (aiFeedback) aiFeedback.addEventListener('input', function () {
+      var note = this.value.trim();
+      var key = feedbackKeyFor(el);
+      if (!note) delete changes.element_feedback[key];
+      else changes.element_feedback[key] = { target: targetOf(el, 'selected'), note: note };
+      updateCount();
+    });
   }
 
   /* Di chuyển trong hệ tọa độ của CHÍNH element (px, chia zoom) — không dùng % của
@@ -1671,12 +1766,13 @@
   /* Comment: click = pin điểm · kéo = khoanh vùng (region) */
   var cdrag = null, marquee = null;
 
-  function addComment(x, y, w, h, clientX, clientY) {
+  function addComment(x, y, w, h, clientX, clientY, target) {
     var note = document.createElement('div');
     note.className = 'rvw-note rvw';
     note.style.left = Math.min(clientX, window.innerWidth - 260) + 'px';
     note.style.top = Math.min(clientY + 10, window.innerHeight - 150) + 'px';
-    note.innerHTML = '<textarea placeholder="' + (w ? T.noteRegion : T.notePoint) + '"></textarea>' +
+    var targetLine = target ? '<div class="rvw-feedback-target">' + T.attachedTo + ': ' + escapeHTML(target.label) + '</div>' : '';
+    note.innerHTML = targetLine + '<textarea placeholder="' + (w ? T.noteRegion : T.notePoint) + '"></textarea>' +
       '<div class="rvw-actions"><button class="rvw-cancel">' + T.cancel + '</button><button class="rvw-save">' + T.saveNote + '</button></div>';
     document.body.appendChild(note);
     note.querySelector('textarea').focus();
@@ -1698,7 +1794,7 @@
         rg.appendChild(badge);
         frame.appendChild(rg);
         pushUndoPin(rg);
-        changes.pins.push({ n: pinCount, type: 'region', x: x + '%', y: y + '%', w: w + '%', h: h + '%', note: txt });
+        changes.pins.push({ n: pinCount, type: 'region', x: x + '%', y: y + '%', w: w + '%', h: h + '%', note: txt, target: target });
       } else {
         var pin = document.createElement('div');
         pin.className = 'rvw-pin';
@@ -1707,7 +1803,7 @@
         pin.dataset.n = pinCount; pin.dataset.note = txt;
         frame.appendChild(pin);
         pushUndoPin(pin);
-        changes.pins.push({ n: pinCount, type: 'point', x: x + '%', y: y + '%', note: txt });
+        changes.pins.push({ n: pinCount, type: 'point', x: x + '%', y: y + '%', note: txt, target: target });
       }
       updateCount();
     };
@@ -1748,7 +1844,10 @@
     var h = +(hpx / fr.height * 100).toFixed(2);
     var cx = e.clientX, cy = e.clientY;
     cdrag = null;
-    addComment(x, y, isRegion ? w : 0, isRegion ? h : 0, cx, cy);
+    var target = isRegion
+      ? bestTargetForRegion({ left: x1, top: y1, right: x1 + wpx, bottom: y1 + hpx })
+      : targetOf(pickAtPoint(cx, cy), 'hit-test');
+    addComment(x, y, isRegion ? w : 0, isRegion ? h : 0, cx, cy, target);
   });
 
   /* Xem lại comment (Figma-style): click pin/badge → bubble hiện ghi chú ngay trên ảnh */
@@ -1815,7 +1914,9 @@
       file: location.pathname.split('/').pop(),
       exported_at: new Date().toISOString(),
       frame: { w: frame.offsetWidth, h: frame.offsetHeight },
-      texts: changes.texts, moves: changes.moves, props: changes.props, pins: changes.pins
+      texts: changes.texts, moves: changes.moves, props: changes.props,
+      element_feedback: changes.element_feedback,
+      pins: changes.pins
     };
     var json = JSON.stringify(payload, null, 2);
     try { navigator.clipboard.writeText(json); } catch (err) { /* ignore */ }
