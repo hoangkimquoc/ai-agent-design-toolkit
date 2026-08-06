@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.2.6
+version: 1.3.0
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -20,6 +20,7 @@ Output của skill là **một file HTML sống**, không phải chỉ là PNG:
 3. Agent vẫn tự mở bằng `open-review.py` ngay sau khi dựng xong để user có full editor + Lưu/Xuất PNG ngay.
 4. User chỉnh trực tiếp trong browser: kéo lớp, sửa chữ, chỉnh opacity, comment.
 5. User bấm **Lưu** hoặc **Xuất PNG** trong editor; chỉ gửi feedback JSON khi cần agent thiết kế tiếp.
+6. Khi cần đưa sang app thật/Figma/handoff, agent xuất thêm **compose handoff manifest** bằng `export-compose.py` rồi dùng manifest đó để sinh code hoặc import vào tool khác.
 
 HTML output mở thường phải là review UI offline, không phải một viewer riêng. Offline mode dùng cùng UI với `#review`, chỉ khác là không có backend nên **Lưu source/Xuất PNG** bị ẩn và topbar hiện **Editor offline**. Browser không thể tự start Python từ `file://`; muốn lưu/xuất PNG 0 token thì dùng `open-review.py` để mở qua `http://127.0.0.1:<port>/...`.
 
@@ -177,6 +178,38 @@ python .agent/skills/design--compose/scripts/compose-screenshot.py \
 
 - Bộ đa kênh: chỉnh `--frame-w/--frame-h` + layout cho từng aspect rồi chụp từng khung (mỗi aspect nên có bản HTML riêng nếu layout khác nhau đáng kể).
 - `--size WxH` cho kích thước tùy biến; `--wait` tăng lên nếu font/ảnh chưa kịp load.
+
+## Bước 3.2 — Export handoff đa đích
+
+`design--compose` không dừng ở PNG. Treat HTML source như một file thiết kế sống, còn exporter là cầu nối sang app/tool khác:
+
+| Target | Output | Dùng khi |
+|---|---|---|
+| Review/source | `design-{slug}.html` | User chỉnh layer/comment trực tiếp |
+| Raster | `{slug}.png` | Onboarding/splash/banner tĩnh đúng pixel |
+| Handoff manifest | `{slug}-handoff.json` | Agent khác đọc để sinh code/app/Figma payload |
+| Expo/React Native | `.tsx` + assets | Onboarding thật cần text native, i18n, accessibility |
+| React/Web | component + CSS/assets | Landing/app web |
+| Figma | plugin/import JSON | Đưa layer tree vào Figma để designer chỉnh tiếp |
+
+Manifest là contract trung gian bắt buộc trước khi sinh code native:
+
+```bash
+python .agent/skills/design--compose/scripts/export-compose.py \
+  <output-dir>/design-{slug}.html \
+  --out <output-dir>/design-{slug}-handoff.json
+```
+
+Manifest gồm `frame`, `nodes[]`, `layer`, `role`, `selector`, `src/asset_path`, `text`, `bounds` theo phần trăm frame và inline `style`. Khi implement vào app thật, agent phải dùng manifest để map:
+- `layer-bg`/ảnh nền → `ImageBackground` hoặc absolute `<Image>`
+- `.slot > img` → asset absolute-position theo `%` frame
+- text trong `.layer-content` → component text native, không flatten vào ảnh nếu cần i18n/accessibility
+- z-order/layer order → thứ tự render hoặc `zIndex`
+
+Quy tắc chọn target:
+- User nói “đưa vào Expo/app/mobile/onboarding” → xuất handoff manifest trước, rồi sinh screen native từ manifest.
+- User chỉ cần hình marketing/splash tĩnh → PNG đủ.
+- User nói “như Figma/chỉnh tiếp trong Figma” → xuất handoff manifest làm payload import; không hứa tương thích `.fig` riêng tư của Figma.
 
 ## Bước 3.5 — Review tương tác (feedback loop với user)
 
