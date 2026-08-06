@@ -56,6 +56,9 @@
       aiFeedbackHint: 'Chọn element rồi nhập ngay trong bubble dưới element. Feedback sẽ đi vào JSON xuất cho AI.',
       aiFeedbackPlaceholder: 'Ví dụ: Làm icon này lớn hơn, đổi màu card này, đưa phần tử này lên trên...',
       aiFeedbackBubbleHint: 'Tự gắn với element đang chọn',
+      saveFeedback: 'Lưu feedback',
+      savedFeedback: 'Đã lưu',
+      clearFeedback: 'Xóa',
       attachedTo: 'Gắn với',
       notePoint: 'Ghi chú cho vị trí này...', noteRegion: 'Ghi chú cho vùng này...',
       cancel: 'Hủy', saveNote: 'Lưu',
@@ -103,6 +106,9 @@
       aiFeedbackHint: 'Select an element, then write in the bubble under it. Feedback is exported for the AI agent.',
       aiFeedbackPlaceholder: 'Example: Make this icon larger, recolor this card, bring this item forward...',
       aiFeedbackBubbleHint: 'Bound to selected element',
+      saveFeedback: 'Save feedback',
+      savedFeedback: 'Saved',
+      clearFeedback: 'Clear',
       attachedTo: 'Attached to',
       notePoint: 'Note for this spot...', noteRegion: 'Note for this region...',
       cancel: 'Cancel', saveNote: 'Save',
@@ -374,6 +380,13 @@
     resize:vertical;border:1px solid #4b4b4b;border-radius:6px;background:#171717;color:#f0f0f0;
     padding:7px 8px;font:400 12px Inter,'Segoe UI',sans-serif;line-height:1.4;outline:none;}
   .rvw-ai-note textarea:focus{border-color:#0d99ff;}
+  .rvw-ai-note-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px;}
+  .rvw-ai-note-actions button{height:28px;border:none;border-radius:6px;padding:0 10px;
+    font:700 11px Inter,'Segoe UI',sans-serif;cursor:pointer;}
+  .rvw-ai-note-save{background:#0d99ff;color:#fff;}
+  .rvw-ai-note-save:hover{background:#0b87e0;}
+  .rvw-ai-note-clear{background:#3a3a3a;color:#cfcfcf;}
+  .rvw-ai-note-clear:hover{background:#464646;}
   .rvw-elname{padding:10px 14px 0;font-weight:600;color:#fff;font-size:12px;word-break:break-word;}
   .rvw-elmeta{padding:4px 14px 10px;color:#8f8f8f;font-size:10px;line-height:1.4;word-break:break-word;}
   .rvw-layers{position:fixed;top:48px;left:0;bottom:0;width:220px;z-index:99999;background:#2c2c2c;
@@ -875,7 +888,7 @@
     });
     return best ? targetOf(best.el, 'region-overlap') : null;
   }
-  var aiNote = null;
+  var aiNote = null, aiNoteTarget = null;
   function writeElementFeedback(el, note) {
     var key = feedbackKeyFor(el);
     if (!note) delete changes.element_feedback[key];
@@ -891,7 +904,20 @@
     aiNote.addEventListener('click', function (ev) { ev.stopPropagation(); });
     return aiNote;
   }
+  function saveElementFeedbackBubble(showStatus) {
+    if (!aiNote || aiNote.style.display === 'none' || !aiNoteTarget) return;
+    var inp = aiNote.querySelector('#rvw-ai-feedback');
+    if (!inp) return;
+    writeElementFeedback(aiNoteTarget, inp.value.trim());
+    var saveBtn = aiNote.querySelector('.rvw-ai-note-save');
+    if (showStatus && saveBtn) {
+      saveBtn.textContent = T.savedFeedback;
+      clearTimeout(saveBtn._rvwTimer);
+      saveBtn._rvwTimer = setTimeout(function () { saveBtn.textContent = T.saveFeedback; }, 900);
+    }
+  }
   function hideElementFeedbackBubble() {
+    saveElementFeedbackBubble(false);
     if (aiNote) aiNote.style.display = 'none';
   }
   function positionElementFeedbackBubble() {
@@ -919,6 +945,8 @@
       return;
     }
     var el = selected;
+    if (aiNoteTarget && aiNoteTarget !== el) saveElementFeedbackBubble(false);
+    aiNoteTarget = el;
     var key = feedbackKeyFor(el);
     var fb = changes.element_feedback[key] || { note: '' };
     var target = targetOf(el, 'selected');
@@ -927,11 +955,28 @@
     box.innerHTML = '<div class="rvw-ai-note-head"><span>' + T.secAiFeedback + '</span>' +
       '<span class="rvw-ai-note-meta">' + escapeHTML(target ? target.label : shortName(el)) + '</span></div>' +
       '<textarea id="rvw-ai-feedback" placeholder="' + escapeHTML(T.aiFeedbackPlaceholder) + '">' + escapeHTML(fb.note || '') + '</textarea>' +
-      '<div class="rvw-feedback-help">' + T.aiFeedbackBubbleHint + '</div>';
+      '<div class="rvw-ai-note-actions"><span class="rvw-feedback-help">' + T.aiFeedbackBubbleHint + '</span>' +
+      '<span><button class="rvw-ai-note-clear" type="button">' + T.clearFeedback + '</button> ' +
+      '<button class="rvw-ai-note-save" type="button">' + T.saveFeedback + '</button></span></div>';
     var inp = box.querySelector('textarea');
     inp.addEventListener('input', function () { writeElementFeedback(el, this.value.trim()); });
+    inp.addEventListener('compositionend', function () { writeElementFeedback(el, this.value.trim()); });
     inp.addEventListener('keydown', function (ev) {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+        ev.preventDefault();
+        saveElementFeedbackBubble(true);
+        this.blur();
+        return;
+      }
       if (ev.key === 'Escape') { ev.preventDefault(); this.blur(); }
+    });
+    var saveBtn = box.querySelector('.rvw-ai-note-save');
+    if (saveBtn) saveBtn.addEventListener('click', function () { saveElementFeedbackBubble(true); });
+    var clearBtn = box.querySelector('.rvw-ai-note-clear');
+    if (clearBtn) clearBtn.addEventListener('click', function () {
+      inp.value = '';
+      writeElementFeedback(el, '');
+      inp.focus();
     });
     positionElementFeedbackBubble();
   }
