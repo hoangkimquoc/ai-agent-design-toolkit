@@ -30,6 +30,12 @@
       png: 'Xuất PNG', shooting: 'Đang chụp...', changes: 'thay đổi',
       props: 'Thuộc tính', layersTitle: 'Layers',
       openEditor: 'Edit live', openEditorHint: 'Mở live editor để chỉnh chữ, kéo lớp, comment và xuất PNG.',
+      startBackendTitle: 'Bật live editor',
+      startBackendHint: 'Trình duyệt không thể tự chạy Python từ file offline. Chạy lệnh này rồi HTML sẽ mở bằng review-server có Lưu/Xuất PNG.',
+      startBackendCopy: 'Copy lệnh',
+      startBackendCopied: 'Đã copy lệnh',
+      startBackendClose: 'Đóng',
+      startBackendLoading: 'Đang tìm server...',
       emptyHint: 'Click một element trên thiết kế để chọn.<br><br>Kéo để di chuyển · mũi tên để tinh chỉnh · double-click để sửa chữ.',
       multiSel: ' elements đã chọn',
       multiHint: 'Kéo để di chuyển cả nhóm · mũi tên nudge · Delete ẩn tất cả · Shift+click để thêm/bớt · Esc bỏ chọn.',
@@ -37,6 +43,11 @@
       flipH: 'Lật ngang', flipV: 'Lật dọc', zUp: 'Lên trước', zDown: 'Ra sau',
       reset: 'Reset', lockRatio: 'Khóa tỉ lệ', unlockRatio: 'Mở khóa tỉ lệ',
       flipGroup: 'Lật', orderGroup: 'Lớp',
+      secPerspective: 'Góc nhìn',
+      skewX: 'Skew X', skewY: 'Skew Y', rotX: 'Xoay X', rotY: 'Xoay Y', perspective: 'Phối cảnh', resetView: 'Reset view',
+      isoHint: 'Xoay 3D',
+      dragView: 'Kéo để xoay object',
+      isoFlat: 'Phẳng', isoLeft: 'Iso trái', isoRight: 'Iso phải', isoTop: 'Nghiêng lên', isoBottom: 'Nghiêng xuống',
       layerContainerHint: 'Đây là layer container. Chọn một item con trong Layers hoặc double-click trên canvas để sửa ảnh/chữ cụ thể.',
       align: 'Căn chữ', alLeft: 'Trái', alCenter: 'Giữa', alRight: 'Phải',
       secPosition: 'Vị trí', secLayout: 'Kích thước', secAppearance: 'Hiển thị', secTypography: 'Chữ',
@@ -60,6 +71,12 @@
       png: 'Export PNG', shooting: 'Capturing...', changes: 'changes',
       props: 'Properties', layersTitle: 'Layers',
       openEditor: 'Edit live', openEditorHint: 'Open the live editor to edit text, move layers, comment, and export PNG.',
+      startBackendTitle: 'Start live editor',
+      startBackendHint: 'The browser cannot start Python from an offline file. Run this command, then the HTML will open through the review server with Save/Export PNG.',
+      startBackendCopy: 'Copy command',
+      startBackendCopied: 'Command copied',
+      startBackendClose: 'Close',
+      startBackendLoading: 'Looking for server...',
       emptyHint: 'Click an element on the canvas to select it.<br><br>Drag to move · arrows to nudge · double-click to edit text.',
       multiSel: ' elements selected',
       multiHint: 'Drag to move the group · arrows to nudge · Delete hides all · Shift+click to add/remove · Esc to deselect.',
@@ -67,6 +84,11 @@
       flipH: 'Flip H', flipV: 'Flip V', zUp: 'Forward', zDown: 'Backward',
       reset: 'Reset', lockRatio: 'Lock ratio', unlockRatio: 'Unlock ratio',
       flipGroup: 'Flip', orderGroup: 'Layer',
+      secPerspective: 'View',
+      skewX: 'Skew X', skewY: 'Skew Y', rotX: 'Rotate X', rotY: 'Rotate Y', perspective: 'Perspective', resetView: 'Reset view',
+      isoHint: '3D rotate',
+      dragView: 'Drag to rotate object',
+      isoFlat: 'Flat', isoLeft: 'Iso left', isoRight: 'Iso right', isoTop: 'Tilt up', isoBottom: 'Tilt down',
       layerContainerHint: 'This is a layer container. Select a child item in Layers or double-click the canvas to edit a specific image/text element.',
       align: 'Text align', alLeft: 'Left', alCenter: 'Center', alRight: 'Right',
       secPosition: 'Position', secLayout: 'Layout', secAppearance: 'Appearance', secTypography: 'Typography',
@@ -90,6 +112,7 @@
     ((navigator.language || '').toLowerCase().indexOf('vi') === 0 ? 'vi' : 'en');
   if (!LANGS[lang]) lang = 'en';
   var T = LANGS[lang];
+  var overlayScriptSrc = (document.currentScript && document.currentScript.src) || '';
 
   function installReviewLauncher() {
     if (document.querySelector('.rvw-open-editor')) return;
@@ -99,6 +122,11 @@
       'height:36px;padding:0 12px;border:none;border-radius:8px;background:#0d99ff;color:#fff;' +
       'font:700 12px Inter,Segoe UI,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.22);cursor:pointer}' +
       '.rvw-open-editor:hover{background:#0b87e0}.rvw-open-editor svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}' +
+      '.rvw-launcher-modal{position:fixed;z-index:99991;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.45);font-family:Inter,Segoe UI,system-ui,sans-serif}' +
+      '.rvw-launcher-card{width:min(560px,calc(100vw - 32px));border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#202020;color:#f5f5f5;box-shadow:0 22px 70px rgba(0,0,0,.42);padding:18px}' +
+      '.rvw-launcher-card h2{margin:0 0 8px;font-size:16px;line-height:1.25}.rvw-launcher-card p{margin:0 0 14px;color:#b8b8b8;font-size:13px;line-height:1.5}' +
+      '.rvw-launcher-card code{display:block;white-space:pre-wrap;word-break:break-word;background:#111;border:1px solid #3a3a3a;border-radius:8px;padding:12px;color:#d8ecff;font-size:12px;line-height:1.45}' +
+      '.rvw-launcher-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.rvw-launcher-actions button{height:34px;border:1px solid #454545;border-radius:7px;background:#2d2d2d;color:#f5f5f5;padding:0 12px;font:700 12px Inter,Segoe UI,system-ui,sans-serif;cursor:pointer}.rvw-launcher-actions .rvw-primary{background:#0d99ff;border-color:#0d99ff}' +
       '@media (max-width:1199px){.rvw-open-editor{display:none}}@media print{.rvw-open-editor{display:none}}';
     document.head.appendChild(style);
     var btn = document.createElement('button');
@@ -111,9 +139,75 @@
       btn.style.left = Math.round(r.right + 16) + 'px';
       btn.style.top = Math.round(Math.max(16, r.top + 16)) + 'px';
     }
+    function fileUrlToPath(url) {
+      if (!url || url.indexOf('file:///') !== 0) return '';
+      var p = decodeURIComponent(url.replace('file:///', ''));
+      if (/^[A-Za-z]:\//.test(p)) p = p.replace(/\//g, '\\');
+      return p;
+    }
+    function dirname(p) {
+      var i = Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/'));
+      return i >= 0 ? p.slice(0, i) : '';
+    }
+    function basename(p) {
+      var i = Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/'));
+      return i >= 0 ? p.slice(i + 1) : p;
+    }
+    function normPath(p) { return (p || '').replace(/\//g, '\\').toLowerCase(); }
+    function skillPath() {
+      return fileUrlToPath(overlayScriptSrc);
+    }
+    function reviewCommand() {
+      var script = skillPath().replace(/\\review-overlay\.js$/i, '\\open-review.py');
+      var file = fileUrlToPath(location.href.split('#')[0]);
+      return 'python "' + script + '" "' + file + '"';
+    }
+    function showLauncherHelp(command) {
+      var modal = document.createElement('div');
+      modal.className = 'rvw-launcher-modal';
+      modal.innerHTML = '<div class="rvw-launcher-card"><h2>' + T.startBackendTitle + '</h2>' +
+        '<p>' + T.startBackendHint + '</p><code>' + command.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code>' +
+        '<div class="rvw-launcher-actions"><button type="button" data-close="1">' + T.startBackendClose + '</button>' +
+        '<button type="button" class="rvw-primary" data-copy="1">' + T.startBackendCopy + '</button></div></div>';
+      modal.onclick = function (ev) {
+        if (ev.target === modal || ev.target.getAttribute('data-close')) modal.remove();
+        if (ev.target.getAttribute('data-copy')) {
+          try { navigator.clipboard.writeText(command); ev.target.textContent = T.startBackendCopied; } catch (err) { /* ignore */ }
+        }
+      };
+      document.body.appendChild(modal);
+    }
+    function findServerThenOpen() {
+      var file = fileUrlToPath(location.href.split('#')[0]);
+      var dir = normPath(dirname(file));
+      var name = basename(file);
+      btn.disabled = true;
+      btn.querySelector('span').textContent = T.startBackendLoading;
+      var ports = [];
+      for (var p = 7799; p < 7819; p++) ports.push(p);
+      Promise.all(ports.map(function (p) {
+        return fetch('http://127.0.0.1:' + p + '/__review__/ping').then(function (r) { return r.json(); })
+          .then(function (j) { return j && j.ok && normPath(j.dir) === dir ? p : null; })
+          .catch(function () { return null; });
+      })).then(function (matches) {
+        var port = matches.filter(Boolean)[0];
+        if (port) {
+          location.href = 'http://127.0.0.1:' + port + '/' + encodeURIComponent(name) + '#review';
+          return;
+        }
+        showLauncherHelp(reviewCommand());
+      }).finally(function () {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = T.openEditor;
+      });
+    }
     btn.onclick = function () {
-      if (location.hash !== '#review') location.hash = 'review';
-      location.reload();
+      if (location.protocol.indexOf('http') === 0) {
+        if (location.hash !== '#review') location.hash = 'review';
+        location.reload();
+        return;
+      }
+      findServerThenOpen();
     };
     document.body.appendChild(btn);
     place();
@@ -303,6 +397,31 @@
   .rvw-control-group{display:flex;flex-direction:column;gap:5px;min-width:0;}
   .rvw-control-label{color:#888;font-size:10px;}
   .rvw-range-row{display:grid;grid-template-columns:minmax(0,1fr) 58px;gap:8px;align-items:center;}
+  .rvw-view-lab{display:grid;grid-template-columns:1fr;gap:5px;}
+  .rvw-iso-preview{height:72px;border:1px solid #3f3f3f;border-radius:7px;background:radial-gradient(circle at 50% 34%,#303236,#1f1f1f 72%);display:flex;align-items:center;justify-content:center;overflow:hidden;perspective:900px;position:relative;cursor:grab;user-select:none;touch-action:none;}
+  .rvw-iso-preview::before,.rvw-iso-preview::after{content:'';position:absolute;background:rgba(210,220,230,.08);pointer-events:none;}
+  .rvw-iso-preview::before{left:14px;right:14px;top:44%;height:1px;}
+  .rvw-iso-preview::after{top:8px;bottom:14px;left:50%;width:1px;}
+  .rvw-iso-preview.rvw-dragging{cursor:grabbing;border-color:#0d99ff;}
+  .rvw-iso-floor{position:absolute;left:18px;right:18px;bottom:6px;height:38px;transform:rotateX(66deg);transform-origin:50% 100%;background-image:linear-gradient(rgba(180,190,202,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(180,190,202,.12) 1px,transparent 1px);background-size:16px 16px;border-bottom:1px solid rgba(180,190,202,.12);opacity:.58;mask-image:linear-gradient(to top,rgba(0,0,0,.8),transparent 82%);pointer-events:none;}
+  .rvw-iso-shadow{position:absolute;width:78px;height:16px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.42),rgba(0,0,0,0) 74%);transform:translate(4px,22px);pointer-events:none;}
+  .rvw-iso-plane{--rvw-w:58px;--rvw-h:38px;--rvw-d:18px;width:var(--rvw-w);height:var(--rvw-h);transform-style:preserve-3d;position:relative;z-index:1;}
+  .rvw-iso-face{position:absolute;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16);}
+  .rvw-iso-front,.rvw-iso-back{left:0;top:0;width:var(--rvw-w);height:var(--rvw-h);}
+  .rvw-iso-front{border-radius:0;background:linear-gradient(135deg,#b9d8ff,#669cf1 52%,#315fb8);transform:translateZ(calc(var(--rvw-d) / 2));}
+  .rvw-iso-front::before{content:'';display:block;width:100%;height:100%;border-radius:0;background:linear-gradient(135deg,rgba(255,255,255,.52),rgba(255,255,255,0) 50%);opacity:.68;}
+  .rvw-iso-back{border-radius:0;background:linear-gradient(135deg,#303640,#20242b);transform:rotateY(180deg) translateZ(calc(var(--rvw-d) / 2));}
+  .rvw-iso-top,.rvw-iso-bottom{left:0;top:calc((var(--rvw-h) - var(--rvw-d)) / 2);width:var(--rvw-w);height:var(--rvw-d);border-radius:0;background:linear-gradient(135deg,#5a5f68,#3f444d);}
+  .rvw-iso-top{transform:rotateX(90deg) translateZ(calc(var(--rvw-h) / 2));}
+  .rvw-iso-bottom{background:linear-gradient(135deg,#2f343c,#1f232a);transform:rotateX(-90deg) translateZ(calc(var(--rvw-h) / 2));}
+  .rvw-iso-left,.rvw-iso-right{left:calc((var(--rvw-w) - var(--rvw-d)) / 2);top:0;width:var(--rvw-d);height:var(--rvw-h);border-radius:0;background:linear-gradient(180deg,#414751,#282d35);}
+  .rvw-iso-right{transform:rotateY(90deg) translateZ(calc(var(--rvw-w) / 2));}
+  .rvw-iso-left{background:linear-gradient(180deg,#565c66,#333943);transform:rotateY(-90deg) translateZ(calc(var(--rvw-w) / 2));}
+  .rvw-iso-tip{position:absolute;left:0;right:0;bottom:3px;text-align:center;color:#8f8f8f;font-size:10px;pointer-events:none;}
+  .rvw-iso-presets{display:flex;flex-direction:row;flex-wrap:wrap;gap:5px;}
+  .rvw-iso-presets button{flex:1 1 72px;height:26px;border:none;border-radius:5px;background:#3a3a3a;color:#ddd;font:600 11px Inter,'Segoe UI',sans-serif;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;}
+  .rvw-iso-presets button:hover{background:#454749;}
+  .rvw-iso-presets button.rvw-on{background:#0d99ff;color:#fff;}
   .rvw-unit-wrap{position:relative;}
   .rvw-unit-wrap input{padding-right:24px;}
   .rvw-unit{position:absolute;right:7px;top:50%;transform:translateY(-50%);color:#777;font-size:10px;pointer-events:none;}
@@ -759,6 +878,33 @@
       '<div class="rvw-field"><label>W</label><div class="rvw-unit-wrap"><input id="rvw-w" type="number" min="0.1" step="0.5" value="' + w + '"><span class="rvw-unit">%</span></div></div>' +
       '<div class="rvw-field"><label>H</label><div class="rvw-unit-wrap"><input id="rvw-h" type="number" min="0.1" step="0.5" value="' + h + '"><span class="rvw-unit">%</span></div></div>' +
       '</div></div>' +
+      '<div class="rvw-section"><div class="rvw-sectitle">' + T.secPerspective + '</div><div class="rvw-fields">' +
+      '<div class="rvw-field rvw-wide"><label>' + T.isoHint + '</label><div class="rvw-view-lab">' +
+      '<div id="rvw-iso-pad" class="rvw-iso-preview" title="' + T.dragView + '"><div class="rvw-iso-floor"></div><div class="rvw-iso-shadow"></div><div id="rvw-iso-plane" class="rvw-iso-plane"><div class="rvw-iso-face rvw-iso-front"></div><div class="rvw-iso-face rvw-iso-back"></div><div class="rvw-iso-face rvw-iso-top"></div><div class="rvw-iso-face rvw-iso-bottom"></div><div class="rvw-iso-face rvw-iso-left"></div><div class="rvw-iso-face rvw-iso-right"></div></div><div class="rvw-iso-tip">' + T.dragView + '</div></div>' +
+      '<div class="rvw-iso-presets">' +
+      '<button id="rvw-iso-flat" title="' + T.isoFlat + '">' + T.isoFlat + '</button>' +
+      '<button id="rvw-iso-left" title="' + T.isoLeft + '">' + T.isoLeft + '</button>' +
+      '<button id="rvw-iso-right" title="' + T.isoRight + '">' + T.isoRight + '</button>' +
+      '<button id="rvw-iso-top" title="' + T.isoTop + '">' + T.isoTop + '</button>' +
+      '<button id="rvw-iso-bottom" title="' + T.isoBottom + '">' + T.isoBottom + '</button>' +
+      '</div></div></div>' +
+      '<div class="rvw-field"><label>' + T.skewX + '</label><div class="rvw-step-row">' +
+      '<button id="rvw-skewx-dec" title="-2">-</button><div class="rvw-unit-wrap"><input id="rvw-skewx" type="number" step="1" value="' + (st.skewX || 0) + '"><span class="rvw-unit">deg</span></div>' +
+      '<button id="rvw-skewx-inc" title="+2">+</button><button id="rvw-skewx-reset" title="' + T.reset + '">0</button></div></div>' +
+      '<div class="rvw-field"><label>' + T.skewY + '</label><div class="rvw-step-row">' +
+      '<button id="rvw-skewy-dec" title="-2">-</button><div class="rvw-unit-wrap"><input id="rvw-skewy" type="number" step="1" value="' + (st.skewY || 0) + '"><span class="rvw-unit">deg</span></div>' +
+      '<button id="rvw-skewy-inc" title="+2">+</button><button id="rvw-skewy-reset" title="' + T.reset + '">0</button></div></div>' +
+      '<div class="rvw-field"><label>' + T.rotX + '</label><div class="rvw-step-row">' +
+      '<button id="rvw-rotx-dec" title="-5">-</button><div class="rvw-unit-wrap"><input id="rvw-rotx" type="number" step="1" value="' + (st.rotX || 0) + '"><span class="rvw-unit">deg</span></div>' +
+      '<button id="rvw-rotx-inc" title="+5">+</button><button id="rvw-rotx-reset" title="' + T.reset + '">0</button></div></div>' +
+      '<div class="rvw-field"><label>' + T.rotY + '</label><div class="rvw-step-row">' +
+      '<button id="rvw-roty-dec" title="-5">-</button><div class="rvw-unit-wrap"><input id="rvw-roty" type="number" step="1" value="' + (st.rotY || 0) + '"><span class="rvw-unit">deg</span></div>' +
+      '<button id="rvw-roty-inc" title="+5">+</button><button id="rvw-roty-reset" title="' + T.reset + '">0</button></div></div>' +
+      '<div class="rvw-field rvw-wide"><label>' + T.perspective + '</label><div class="rvw-range-row">' +
+      '<input id="rvw-persp-range" type="range" min="200" max="2000" step="50" value="' + (st.perspective || 900) + '">' +
+      '<div class="rvw-unit-wrap"><input id="rvw-persp" type="number" min="200" step="50" value="' + (st.perspective || 900) + '"><span class="rvw-unit">px</span></div></div></div>' +
+      '<div class="rvw-field rvw-wide"><button id="rvw-view-reset" class="rvw-mini-btn" title="' + T.resetView + '">' + T.resetView + '</button></div>' +
+      '</div></div>' +
       '<div class="rvw-section"><div class="rvw-sectitle">' + T.secAppearance + '</div><div class="rvw-fields">' +
       '<div class="rvw-field rvw-wide"><label>' + T.op + '</label><div class="rvw-range-row">' +
       '<input id="rvw-op-range" type="range" min="0" max="100" step="1" value="' + op + '">' +
@@ -858,6 +1004,153 @@
       ratioBtn.innerHTML = s.ratioLocked ? ICONS.lock : ICONS.unlock;
       ratioBtn.title = s.ratioLocked ? T.unlockRatio : T.lockRatio;
     };
+    function syncViewInputs() {
+      var s = getState(el);
+      var map = {
+        'rvw-skewx': s.skewX || 0,
+        'rvw-skewy': s.skewY || 0,
+        'rvw-rotx': s.rotX || 0,
+        'rvw-roty': s.rotY || 0,
+        'rvw-persp': s.perspective || 900,
+        'rvw-persp-range': Math.min(2000, Math.max(200, s.perspective || 900))
+      };
+      Object.keys(map).forEach(function (id) {
+        var inp = document.getElementById(id);
+        if (inp) inp.value = map[id];
+      });
+    }
+    function viewPresetKey(s) {
+      var sx = Math.round(s.skewX || 0), sy = Math.round(s.skewY || 0);
+      var rx = Math.round(s.rotX || 0), ry = Math.round(s.rotY || 0);
+      if (!sx && !sy && !rx && !ry) return 'flat';
+      if (sx === 10 && rx === 50 && !sy && !ry) return 'left';
+      if (sx === -10 && rx === 50 && !sy && !ry) return 'right';
+      if (!sx && !sy && rx === 60 && ry === -30) return 'top';
+      if (!sx && !sy && rx === -45 && ry === 30) return 'bottom';
+      return '';
+    }
+    function updateViewPreview() {
+      var s = getState(el);
+      var plane = document.getElementById('rvw-iso-plane');
+      if (plane) {
+        plane.style.transform = 'rotateX(' + (s.rotX || 0) + 'deg) rotateY(' + (s.rotY || 0) + 'deg) skewX(' + (s.skewX || 0) + 'deg) skewY(' + (s.skewY || 0) + 'deg)';
+      }
+      var key = viewPresetKey(s);
+      ['flat', 'left', 'right', 'top', 'bottom'].forEach(function (name) {
+        var b = document.getElementById('rvw-iso-' + name);
+        if (b) b.classList.toggle('rvw-on', key === name);
+      });
+    }
+    function setView(values) {
+      pushUndo(el);
+      var s = getState(el);
+      s.skewX = values.skewX || 0;
+      s.skewY = values.skewY || 0;
+      s.rotX = values.rotX || 0;
+      s.rotY = values.rotY || 0;
+      s.perspective = values.perspective || 900;
+      syncViewInputs();
+      updateViewPreview();
+      applyTransform(el); refreshBoxes();
+    }
+    function bindViewPad() {
+      var pad = document.getElementById('rvw-iso-pad');
+      if (!pad || !pad.addEventListener) return;
+      var dragView = null;
+      function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+      function snap(v) { return Math.round(v * 10) / 10; }
+      pad.addEventListener('pointerdown', function (ev) {
+        ev.preventDefault();
+        pushUndo(el);
+        var s = getState(el);
+        dragView = {
+          x: ev.clientX, y: ev.clientY,
+          rotX: s.rotX || 0, rotY: s.rotY || 0
+        };
+        pad.classList.add('rvw-dragging');
+        try { pad.setPointerCapture(ev.pointerId); } catch (err) { /* ignore */ }
+      });
+      pad.addEventListener('pointermove', function (ev) {
+        if (!dragView) return;
+        ev.preventDefault();
+        var s = getState(el);
+        s.rotY = snap(clamp(dragView.rotY + (ev.clientX - dragView.x) * 0.55, -75, 75));
+        s.rotX = snap(clamp(dragView.rotX - (ev.clientY - dragView.y) * 0.55, -75, 75));
+        if (!s.perspective) s.perspective = 900;
+        syncViewInputs();
+        updateViewPreview();
+        applyTransform(el); refreshBoxes();
+      });
+      function endDrag(ev) {
+        if (!dragView) return;
+        dragView = null;
+        pad.classList.remove('rvw-dragging');
+        try { pad.releasePointerCapture(ev.pointerId); } catch (err) { /* ignore */ }
+      }
+      pad.addEventListener('pointerup', endDrag);
+      pad.addEventListener('pointercancel', endDrag);
+      pad.addEventListener('dblclick', function () {
+        setView({ skewX: 0, skewY: 0, rotX: 0, rotY: 0, perspective: 900 });
+      });
+    }
+    function bindViewNumber(id, key, fallback) {
+      apply(id, function () {
+        var n = parseFloat(this.value);
+        getState(el)[key] = isNaN(n) ? fallback : n;
+        updateViewPreview(); applyTransform(el); refreshBoxes();
+      }.bind(document.getElementById(id)));
+    }
+    function bindStepper(base, key, step, fallback) {
+      function setVal(v) {
+        var inp = document.getElementById(base);
+        if (!inp) return;
+        inp.value = v;
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      bindViewNumber(base, key, fallback);
+      var dec = document.getElementById(base + '-dec');
+      if (dec) dec.onclick = function () { setVal((parseFloat(document.getElementById(base).value) || fallback) - step); };
+      var inc = document.getElementById(base + '-inc');
+      if (inc) inc.onclick = function () { setVal((parseFloat(document.getElementById(base).value) || fallback) + step); };
+      var reset = document.getElementById(base + '-reset');
+      if (reset) reset.onclick = function () { setVal(fallback); };
+    }
+    bindStepper('rvw-skewx', 'skewX', 2, 0);
+    bindStepper('rvw-skewy', 'skewY', 2, 0);
+    bindStepper('rvw-rotx', 'rotX', 5, 0);
+    bindStepper('rvw-roty', 'rotY', 5, 0);
+    bindViewPad();
+    var isoFlat = document.getElementById('rvw-iso-flat');
+    if (isoFlat) isoFlat.onclick = function () { setView({ skewX: 0, skewY: 0, rotX: 0, rotY: 0, perspective: 900 }); };
+    var isoLeft = document.getElementById('rvw-iso-left');
+    if (isoLeft) isoLeft.onclick = function () { setView({ skewX: 10, skewY: 0, rotX: 50, rotY: 0, perspective: 900 }); };
+    var isoRight = document.getElementById('rvw-iso-right');
+    if (isoRight) isoRight.onclick = function () { setView({ skewX: -10, skewY: 0, rotX: 50, rotY: 0, perspective: 900 }); };
+    var isoTop = document.getElementById('rvw-iso-top');
+    if (isoTop) isoTop.onclick = function () { setView({ skewX: 0, skewY: 0, rotX: 60, rotY: -30, perspective: 900 }); };
+    var isoBottom = document.getElementById('rvw-iso-bottom');
+    if (isoBottom) isoBottom.onclick = function () { setView({ skewX: 0, skewY: 0, rotX: -45, rotY: 30, perspective: 900 }); };
+    apply('rvw-persp', function () {
+      var v = Math.max(200, parseFloat(this.value) || 900);
+      this.value = v;
+      var range = document.getElementById('rvw-persp-range');
+      if (range) range.value = Math.min(2000, v);
+      getState(el).perspective = v;
+      updateViewPreview(); applyTransform(el); refreshBoxes();
+    }.bind(document.getElementById('rvw-persp')));
+    var perspRange = document.getElementById('rvw-persp-range');
+    if (perspRange) perspRange.addEventListener('input', function () {
+      var num = document.getElementById('rvw-persp');
+      if (num) num.value = this.value;
+      if (!this.dataset.rvwPushed) { pushUndo(el); this.dataset.rvwPushed = '1'; }
+      getState(el).perspective = parseFloat(this.value) || 900;
+      updateViewPreview(); applyTransform(el); refreshBoxes();
+    });
+    var viewReset = document.getElementById('rvw-view-reset');
+    if (viewReset) viewReset.onclick = function () {
+      setView({ skewX: 0, skewY: 0, rotX: 0, rotY: 0, perspective: 900 });
+    };
+    updateViewPreview();
     apply('rvw-op', function () {
       var pct = Math.min(100, Math.max(0, parseFloat(this.value) || 0));
       this.value = pct;
@@ -977,7 +1270,12 @@
   /* Xoay/lật: compose lên transform gốc của element (giữ translateX(-50%) v.v.) */
   var elState = new Map();
   function getState(el) {
-    if (!elState.has(el)) elState.set(el, { rot: 0, fx: false, fy: false, scale: 1 });
+    if (!elState.has(el)) {
+      elState.set(el, {
+        rot: 0, fx: false, fy: false, scale: 1,
+        skewX: 0, skewY: 0, rotX: 0, rotY: 0, perspective: 900
+      });
+    }
     return elState.get(el);
   }
   function applyTransform(el) {
@@ -1005,7 +1303,13 @@
       el.dataset.rvwBase = base;
     }
     var t = el.dataset.rvwBase;
+    var has3d = !!(s.rotX || s.rotY);
+    if (has3d) t += ' perspective(' + Math.max(200, s.perspective || 900) + 'px)';
+    if (s.rotX) t += ' rotateX(' + s.rotX + 'deg)';
+    if (s.rotY) t += ' rotateY(' + s.rotY + 'deg)';
     if (s.rot) t += ' rotate(' + s.rot + 'deg)';
+    if (s.skewX) t += ' skewX(' + s.skewX + 'deg)';
+    if (s.skewY) t += ' skewY(' + s.skewY + 'deg)';
     if (s.fx) t += ' scaleX(-1)';
     if (s.fy) t += ' scaleY(-1)';
     if (s.scale && s.scale !== 1) t += ' scale(' + s.scale.toFixed(3) + ')';
@@ -1015,6 +1319,11 @@
     recordProp(el, 'flipX', s.fx);
     recordProp(el, 'flipY', s.fy);
     recordProp(el, 'scale', s.scale);
+    recordProp(el, 'skewX', s.skewX || 0);
+    recordProp(el, 'skewY', s.skewY || 0);
+    recordProp(el, 'rotateX', s.rotX || 0);
+    recordProp(el, 'rotateY', s.rotY || 0);
+    recordProp(el, 'perspective', s.perspective || 900);
   }
 
   /* ================= undo (Ctrl+Z) =================

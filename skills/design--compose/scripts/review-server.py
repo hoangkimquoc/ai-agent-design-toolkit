@@ -31,6 +31,7 @@ SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENSHOT = os.path.join(SKILL_DIR, "scripts", "compose-screenshot.py")
 # Mọi biến thể URL file:/// trỏ vào thư mục skill → map sang /__skill__/
 _SKILL_URL_RE = re.compile(r"file:///[^\"']*(?:design--compose|<path-to-skill>)", re.I)
+_REVIEW_OVERLAY_TAG = '<script src="/__skill__/scripts/review-overlay.js"></script>'
 
 
 class ReviewHandler(SimpleHTTPRequestHandler):
@@ -41,9 +42,17 @@ class ReviewHandler(SimpleHTTPRequestHandler):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -69,6 +78,11 @@ class ReviewHandler(SimpleHTTPRequestHandler):
             if os.path.isfile(full):
                 html = open(full, encoding="utf-8").read()
                 html = _SKILL_URL_RE.sub("/__skill__", html)
+                if "review-overlay.js" not in html:
+                    if "</body>" in html:
+                        html = html.replace("</body>", f"  {_REVIEW_OVERLAY_TAG}\n</body>", 1)
+                    else:
+                        html += f"\n{_REVIEW_OVERLAY_TAG}\n"
                 body = html.encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")

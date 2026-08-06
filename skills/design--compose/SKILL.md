@@ -3,24 +3,39 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.0.0
+version: 1.1.8
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
 # Design Compose — Ghép lớp thiết kế kiểu Designer
 
-Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh chụp, logo có sẵn) và ghép thành ảnh hoàn chỉnh. Không tự gen ảnh AI — việc đó thuộc `design--cover-image`. Có thể dùng lẻ hoặc được orchestrate bởi workflow `design-compose-pipeline`.
+Skill nguyên tử: nhận asset từ **bất kỳ nguồn nào** (AI gen, ảnh chụp, logo có sẵn) và ghép thành ảnh hoàn chỉnh. Không tự gen ảnh AI — việc đó thuộc `design--cover-image` hoặc backend gen ảnh của agent hiện tại. Có thể dùng lẻ hoặc được orchestrate bởi workflow `design-compose-pipeline`.
 
 ## User flow mặc định (đừng bắt user hiểu kỹ thuật)
 
 Output của skill là **một file HTML sống**, không phải chỉ là PNG:
 
-1. Agent tạo `design-{slug}.html` từ template và nhúng sẵn live editor.
-2. Agent tự mở bằng `open-review.py` ngay sau khi dựng xong.
-3. User chỉnh trực tiếp trong browser: kéo lớp, sửa chữ, chỉnh opacity, comment.
-4. User bấm **Lưu** hoặc **Xuất PNG** trong editor; chỉ gửi feedback JSON khi cần agent thiết kế tiếp.
+1. Agent tạo `design-{slug}.html` từ template. Mở thường bằng `file://` phải là **offline view sạch** của thiết kế, không hiện editor chrome trong artboard.
+2. HTML offline có nút **Edit live** ngoài artboard. Bấm nút này sẽ:
+   - tự chuyển sang review-server nếu server cùng thư mục đang chạy;
+   - nếu chưa có server, hiện đúng command `open-review.py <file>.html` để bật backend local.
+3. Agent vẫn tự mở bằng `open-review.py` ngay sau khi dựng xong để user có full editor + Lưu/Xuất PNG ngay.
+4. User chỉnh trực tiếp trong browser: kéo lớp, sửa chữ, chỉnh opacity, comment.
+5. User bấm **Lưu** hoặc **Xuất PNG** trong editor; chỉ gửi feedback JSON khi cần agent thiết kế tiếp.
 
-HTML output mở thường phải có nút **Edit live** ngoài artboard để user tự quay lại editor sau này. Nút này là editor chrome, không phải design layer, và không được lọt vào PNG export.
+HTML output mở thường phải là bản xem offline, có nút **Edit live** ngoài artboard để user tự quay lại editor sau này. Nút này là editor chrome, không phải design layer, và không được lọt vào PNG export. Browser không thể tự start Python từ `file://`; nút chỉ có thể tìm server đang chạy hoặc hiện command bật backend.
+
+## Backend gen ảnh theo môi trường agent
+
+`design--compose` chỉ cần file ảnh đầu vào, nhưng workflow phía trước có thể tạo ảnh bằng nhiều backend. Chọn đường ngắn nhất theo agent đang chạy:
+
+| Môi trường hiện tại | Cách gen ảnh nên dùng |
+|---|---|
+| **Codex app/chat có tool `image_gen`** | Gọi `image_gen` trực tiếp trong phiên hiện tại; không gọi vòng ngoài qua Codex CLI. |
+| **Claude Code/Qwen/agent khác nhưng máy có Codex CLI** | Dùng `codex exec ...` như backend phụ để tạo PNG bằng Codex/image_gen. |
+| **Không có Codex/image backend** | Dùng asset user cung cấp, generator khác, hoặc gradient fallback trong template. |
+
+Quy tắc: nếu agent hiện tại đã có native image tool thì dùng native tool đó trước. Chỉ gọi Codex CLI khi agent hiện tại **không** có image generation trực tiếp.
 
 ## Ba nguyên tắc cứng (không thương lượng)
 
@@ -147,13 +162,16 @@ python .agent/skills/design--compose/scripts/open-review.py <output-dir>/design-
 
 Một lệnh lo trọn: tái dùng review-server đang serve đúng thư mục (hoặc tự khởi động nền ở port trống), chờ sẵn sàng, mở browser vào `#review`. Server cho phép nút Lưu/Xuất PNG hoạt động 0 token.
 
-HTML mở thường cũng có nút **Edit live** ngoài artboard. Bấm nút này chuyển sang `#review`: nếu đang mở qua review-server thì có đủ **Lưu/Xuất PNG**; nếu đang mở trực tiếp `file://` thì vẫn chỉnh được nhưng nút Lưu/Xuất PNG sẽ ẩn và topbar cảnh báo mở bằng `open-review.py`.
+HTML mở thường cũng có nút **Edit live** ngoài artboard:
+- Nếu đang mở qua `http://127.0.0.1:<port>/...`, nút chuyển sang `#review` và bật editor đầy đủ.
+- Nếu đang mở trực tiếp `file://`, nút dò review-server đang chạy cho cùng thư mục; tìm thấy thì chuyển sang URL server `#review`.
+- Nếu chưa có server, nút hiện command `python ".../open-review.py" "<file>.html"` để bật backend local. Đây là giới hạn bảo mật trình duyệt: file offline không thể tự chạy Python.
 
 (Fallback không server: mở `file:///<đường-dẫn>/design-{slug}.html#review` — nút Lưu/Xuất PNG tự ẩn, còn lại hoạt động đủ. Đừng đưa link dạng text — IDE/chat encode `?`/`#` gây ERR_FILE_NOT_FOUND, luôn mở bằng lệnh.)
 
 Overlay ([scripts/review-overlay.js](scripts/review-overlay.js), template đã nhúng sẵn, chỉ kích hoạt khi có `#review`/`?review`) là editor chrome kiểu Figma — dark canvas, icon SVG, không emoji:
 - **Layers panel (trái)**: cây phân lớp Nền → Art → Adjustment → Nội dung, expand/collapse group, click chọn đúng element trong nhóm chồng nhau, toggle ẩn/hiện từng lớp để soi; sync 2 chiều với selection trên canvas
-- **Chọn (V)** — select model Figma: click = group ngoài cùng · double-click = drill sâu 1 cấp · Ctrl+click = element sâu nhất · double-click text đã chọn = sửa chữ inline · **Shift+click = thêm/bớt vào nhóm · quét marquee vùng trống = chọn nhiều · kéo/nudge/Delete áp cả nhóm** (tự loại cặp cha–con lồng nhau). Đã chọn gì thì kéo cái đó (px theo hệ tọa độ của chính element, element static tự chuyển relative); mũi tên nudge 2px, Shift = 10px; **xoay** bằng handle tròn trên selection box (Shift = bước 15°); **Delete** = ẩn element + ghi yêu cầu xóa vào feedback. Panel Thuộc tính: X/Y/W/H, Xoay (°), Mờ (%), Lật ngang/dọc, Lên trước/Ra sau (z-order), cỡ chữ, nội dung — sửa là áp ngay
+- **Chọn (V)** — select model Figma: click = group ngoài cùng · double-click = drill sâu 1 cấp · Ctrl+click = element sâu nhất · double-click text đã chọn = sửa chữ inline · **Shift+click = thêm/bớt vào nhóm · quét marquee vùng trống = chọn nhiều · kéo/nudge/Delete áp cả nhóm** (tự loại cặp cha–con lồng nhau). Đã chọn gì thì kéo cái đó (px theo hệ tọa độ của chính element, element static tự chuyển relative); mũi tên nudge 2px, Shift = 10px; **xoay** bằng handle tròn trên selection box (Shift = bước 15°); **Delete** = ẩn element + ghi yêu cầu xóa vào feedback. Panel Thuộc tính: X/Y/W/H, Xoay (°), Góc nhìn với 3D pad kéo trực tiếp để rotate object X/Y (khối 3D + grid chiều sâu), preset nhanh (Flat/Iso/Tilt), Skew/Perspective để tinh chỉnh, Mờ (%), Lật ngang/dọc, Lên trước/Ra sau (z-order), cỡ chữ, nội dung — sửa là áp ngay
 - **Comment (C)**: click đặt pin điểm, **kéo để khoanh vùng** (region đánh số kiểu Figma) + ghi chú qua popup
 - **Snap & alignment guides**: khi kéo, element tự hít vào mép/tâm frame và mép/tâm các element khác (ngưỡng 6px), guide line đỏ hiện chỗ khớp; toggle nút Snap trên topbar, giữ Alt để tạm tắt khi kéo
 - **Canvas navigation**: Space+kéo hoặc chuột giữa = pan (hand tool) · Ctrl+lăn = zoom neo tại con trỏ · lăn = pan dọc, Shift+lăn = pan ngang · −/+/Fit trên topbar (Fit reset cả pan), tự fit khi mở
