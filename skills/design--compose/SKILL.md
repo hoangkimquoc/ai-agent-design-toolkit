@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.1.8
+version: 1.1.9
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -36,6 +36,24 @@ HTML output mở thường phải là bản xem offline, có nút **Edit live** 
 | **Không có Codex/image backend** | Dùng asset user cung cấp, generator khác, hoặc gradient fallback trong template. |
 
 Quy tắc: nếu agent hiện tại đã có native image tool thì dùng native tool đó trước. Chỉ gọi Codex CLI khi agent hiện tại **không** có image generation trực tiếp.
+
+## Layer Contract — bắt buộc trước khi compose
+
+`design--compose` tạo **file thiết kế sống có thể chỉnh từng phần tử**, không tạo poster bitmap phẳng. Khi user nói "gen lại toàn bộ", "làm lại từ đầu", "theo đúng style", hoặc đưa screenshot làm reference, hiểu là **gen lại toàn bộ asset theo layer**, không phải gen một artboard hoàn chỉnh rồi phủ chữ HTML.
+
+Trước khi viết HTML, agent phải có hoặc tạo **Asset Manifest** tối thiểu:
+
+| Role | Bắt buộc | Yêu cầu |
+|---|---:|---|
+| `background` | ✅ | Nền/environment sạch, không chữ, không chứa object chính cần kéo/chỉnh riêng. |
+| `primary-object` | ✅ khi có sản phẩm/phone/mockup/hero object | File riêng hoặc slot riêng; nếu là screenshot app thì đặt vào slot phone/mockup, không flatten cùng pet/nền. |
+| `character-or-product` | ✅ khi có linh vật/sản phẩm | PNG alpha riêng, đã rmbg/filter/trim nếu cần. |
+| `supporting-badges` | ✅ khi brief có icon/badge/decor 3D | Mỗi cụm chính là một element riêng hoặc nhóm slot riêng. |
+| `content-html` | ✅ | Title/subtitle/CTA/badge/logo bằng HTML/CSS, không để AI vẽ chữ. |
+
+**Gate tự kiểm trước khi giao:** user có chọn/kéo/ẩn/chỉnh z-order được từng object chính trong review không? Nếu không, thiết kế **không đạt pipeline**.
+
+**Fail condition:** chỉ có 1 bitmap artboard trong `.layer-bg`/`.layer-art` + chữ HTML là sai pipeline, trừ khi user nói rõ "chỉ cần ảnh minh họa nguyên khối, không cần live edit layer". Khi fail, quay lại gen/tách asset theo manifest trên.
 
 ## Ba nguyên tắc cứng (không thương lượng)
 

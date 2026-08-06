@@ -32,6 +32,8 @@ Chỉ skip hỏi khi user đã cung cấp đủ hoặc bảo "tự quyết/làm 
 | Bộ đa kênh cùng nội dung | A → B → C một lần, D lặp theo từng aspect |
 | Chỉ cần ảnh minh họa nghệ thuật nguyên khối, không chữ HTML | Chỉ A (`design--cover-image` thuần, dừng ở đó) |
 
+**Diễn giải bắt buộc:** "gen lại toàn bộ", "làm lại từ đầu", "theo đúng style screenshot/reference" vẫn route A → B → C → D theo **asset tách lớp**. Không được hiểu là gen một poster/artboard nguyên khối rồi chỉ phủ chữ HTML, trừ khi user nói rõ không cần live edit layer.
+
 ## Các bước pipeline
 
 ### Backend gen ảnh — chọn theo môi trường
@@ -44,19 +46,40 @@ Chỉ skip hỏi khi user đã cung cấp đủ hoặc bảo "tự quyết/làm 
 
 Mọi prompt gen ảnh vẫn ghi ra file trong `prompts/` trước khi gen để tái lập và đổi backend khi cần.
 
+### Gate 0.5 — Asset Manifest trước khi gen
+
+Trước khi gọi image backend hoặc viết HTML, agent phải ghi nhanh manifest trong scratch/plan nội bộ hoặc prompt file:
+
+| Role | Output mong đợi |
+|---|---|
+| `background` | Nền/environment không chữ, không phone/pet/icon chính nếu các object đó cần chỉnh riêng. |
+| `phone-or-app-surface` | Screenshot thật đặt vào mockup slot, hoặc phone/app mockup gen riêng. |
+| `character-or-product` | Linh vật/sản phẩm gen riêng trên nền phẳng để tách alpha. |
+| `supporting-badges` | Icon/badge/decor chính gen riêng theo cụm. |
+| `content-html` | Title/subtitle/CTA/badge/logo là HTML/CSS. |
+
+Nếu manifest chỉ có `full-artboard` + `content-html`, STOP: đó là sai pipeline compose. Quay lại tách prompt/asset theo các role trên.
+
+Khi có reference screenshot app:
+- Dùng screenshot để lấy style/UI language, hoặc đặt screenshot thật vào slot `phone-or-app-surface`.
+- Không dùng screenshot/reference làm lý do flatten toàn bộ composition.
+
 ### A — Gen nền (skill `design--cover-image`)
 - Bắt buộc `--text none` (ảnh không chứa chữ AI), `--aspect` khớp tỉ lệ đã chốt.
 - Chèn **art_direction block** của style đã chọn (từ `style-registry.json`) vào prompt để nền và element đồng bộ chất liệu.
 - Nếu đang ở Codex app/chat: dùng trực tiếp tool `image_gen` để tạo PNG. Nếu đang ở Claude/Qwen: có thể gọi Codex CLI hoặc backend khác. Lưu kết quả: `<output-dir>/assets/bg-{slug}.png`.
+- Prompt nền phải cấm các object cần chỉnh riêng: không phone/mockup, không pet/product, không badge/icon chính, không chữ. Chỉ tạo environment/surface/lighting/depth.
 
 ### B — Gen element + tách nền (skill `design--cover-image` + `auto--media`)
 - Chỉ chạy khi thiết kế cần element rời (linh vật, sản phẩm, icon). Prompt: chủ thể đơn lẻ, "isolated on solid plain background", cùng art_direction block.
 - Nếu đang ở Codex app/chat: dùng trực tiếp tool `image_gen` để tạo element. Nếu không có native image tool thì dùng Codex CLI/generator khác.
 - Tách nền bằng RMBG (`auto--media`) → PNG trong suốt `assets/element-{slug}.png`.
 - Cạnh mềm (tóc/khói/glow) tách xấu → gen lại với nền phẳng hơn, tối đa 2 vòng rồi hỏi user.
+- Với app onboarding/service finder, các object tối thiểu thường là: `phone/app surface`, `pet/mascot`, `badge/icon nhóm dịch vụ`. Gen prompt riêng cho từng role; không gom tất cả vào một prompt tổng.
 
 ### C — Ghép lớp (skill `design--compose`)
 - Copy template → `design-{slug}.html`, set aspect + style, chèn 3 lớp, bật scrim nếu nền nhiễu. HTML mở thường là **offline view sạch**; giữ `review-overlay.js` để có nút **Edit live** ngoài artboard. Nút này tìm review-server đang chạy hoặc hiện command `open-review.py` để bật backend local. Theo đúng 3 nguyên tắc cứng trong SKILL.md của `design--compose`.
+- Acceptance gate: trong Layers panel phải chọn/kéo/ẩn được từng object chính từ manifest (`background`, `phone/app surface`, `pet/product`, `badges`, `content-html`). Nếu phone/pet/icon dính chung một bitmap thì không đạt C.
 
 ### D — Review & chốt
 - Khởi động review-server + mở overlay cho user bằng `open-review.py` (SKILL.md `design--compose` Bước 3.5) — **KHÔNG giao PNG mỗi vòng**, browser là render sống. Không chỉ gửi đường dẫn HTML rồi để user tự mò.
