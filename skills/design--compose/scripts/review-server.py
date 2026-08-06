@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import quote, urlparse, parse_qs
 
 if sys.platform.startswith("win"):
     try:
@@ -114,6 +114,9 @@ class ReviewHandler(SimpleHTTPRequestHandler):
             f.write(html)
         return full
 
+    def _url_for_file(self, path):
+        return "/" + quote(os.path.basename(path))
+
     def do_POST(self):
         parsed = urlparse(self.path)
         q = parse_qs(parsed.query)
@@ -140,7 +143,7 @@ class ReviewHandler(SimpleHTTPRequestHandler):
                 )
                 if r.returncode != 0 or not os.path.exists(out):
                     return self._json(500, {"ok": False, "error": (r.stdout + r.stderr)[-400:]})
-                return self._json(200, {"ok": True, "path": out, "source_saved": full})
+                return self._json(200, {"ok": True, "path": out, "url": self._url_for_file(out), "source_saved": full})
             except Exception as e:
                 return self._json(500, {"ok": False, "error": str(e)})
 
@@ -155,7 +158,7 @@ class ReviewHandler(SimpleHTTPRequestHandler):
                 )
                 if r.returncode != 0 or not os.path.exists(out):
                     return self._json(500, {"ok": False, "error": (r.stdout + r.stderr)[-400:]})
-                return self._json(200, {"ok": True, "path": out, "source_saved": full})
+                return self._json(200, {"ok": True, "path": out, "url": self._url_for_file(out), "source_saved": full})
             except Exception as e:
                 return self._json(500, {"ok": False, "error": str(e)})
 
@@ -187,3 +190,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

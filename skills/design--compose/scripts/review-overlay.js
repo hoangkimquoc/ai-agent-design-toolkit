@@ -2020,6 +2020,9 @@
     a.click();
     closeExportMenu();
   }
+  function openExportResult(res) {
+    if (res && res.ok && res.url) window.open(res.url, '_blank', 'noopener');
+  }
   function exportPNG() {
     if (!serverFeatures.png) { showNoServer(); return; }
     exportPngBtn.disabled = true; exportPngBtn.innerHTML = ICONS.image + T.shooting;
@@ -2028,6 +2031,7 @@
       method: 'POST', body: cleanHTML()
     }).then(function (r) { return r.json(); }).then(function (res) {
       exportPngBtn.disabled = false; exportPngBtn.innerHTML = ICONS.image + T.png;
+      openExportResult(res);
       showToast(res.ok ? T.exported + res.path : T.errExport + res.error, !res.ok);
       closeExportMenu();
     }).catch(function (err) {
@@ -2042,6 +2046,7 @@
       method: 'POST', body: cleanHTML()
     }).then(function (r) { return r.json(); }).then(function (res) {
       exportHandoffBtn.disabled = false; exportHandoffBtn.innerHTML = ICONS.export + T.handoff;
+      openExportResult(res);
       showToast(res.ok ? T.exportedHandoff + res.path : T.errExport + res.error, !res.ok);
       closeExportMenu();
     }).catch(function (err) {

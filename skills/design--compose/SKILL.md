@@ -3,7 +3,7 @@ name: nexus:compose
 category: design
 risk: safe
 source: internal
-version: 1.4.2
+version: 1.4.3
 description: Ghép các phần tử thiết kế (ảnh nền AI, element PNG trong suốt, logo, chữ tiếng Việt) thành ảnh truyền thông hoàn chỉnh bằng khung HTML 3 lớp, kèm review overlay tương tác kiểu Figma (layers panel, multi-select, snap guides, undo, comment, pan/zoom) và review-server cho user tự Lưu source + Xuất PNG 0 token. Dùng khi user muốn "ghép ảnh thành banner", "compose banner", "làm ảnh post FB/Instagram/story", "review design", "chỉnh thiết kế trực tiếp", "đè chữ lên ảnh", "thay text trên thiết kế", hoặc đã có sẵn asset và cần lên khung. Hỗ trợ 1:1, 16:9, 9:16, 4:5, 1.91:1, 2.35:1 và 4 style preset. Chữ là HTML nên tiếng Việt đúng chính tả 100%.
 ---
 
@@ -238,7 +238,7 @@ Overlay ([scripts/review-overlay.js](scripts/review-overlay.js), template đã n
 - **Canvas navigation**: Space+kéo hoặc chuột giữa = pan (hand tool) · Ctrl+lăn = zoom neo tại con trỏ · lăn = pan dọc, Shift+lăn = pan ngang · −/+/Fit trên topbar (Fit reset cả pan), tự fit khi mở
 - **Undo (Ctrl+Z / nút topbar)**: hoàn tác mọi mutation (move, resize, rotate, flip, opacity, z-order, sửa chữ, delete, đặt pin/region) — snapshot-based, max bước theo RAM máy (`navigator.deviceMemory` × 64, kẹp 50–500)
 - **Feedback JSON**: nút nằm cạnh **Comment**, chỉ active khi có pin comment hoặc feedback gắn element mới. Khi bấm, tải `feedback-{slug}.json` (`texts`/`moves`/`props`/`element_feedback`/`pins`) và dùng được cả offline.
-- **Menu Xuất** (xanh dương): một nút có nhiều option giống design tool. **PNG** lưu source rồi chụp `<design>-final.png`; **Handoff JSON** lưu source rồi xuất `<design>-handoff.json` để agent sinh Expo/React/Figma payload. Option cần backend chỉ bật khi mở qua review-server online.
+- **Menu Xuất** (xanh dương): một nút có nhiều option giống design tool. **PNG** lưu source rồi chụp `<design>-final.png`; **Handoff JSON** lưu source rồi xuất `<design>-handoff.json` để agent sinh Expo/React/Figma payload. Khi export thành công, overlay tự mở file output trong tab mới. Option cần backend chỉ bật khi mở qua review-server online.
 - **Lưu** (chỉ hiện khi có review-server): ghi mọi chỉnh sửa live **thẳng vào file HTML source** (backup `.bak` bản trước) — 0 token
 - **Xuất PNG/Handoff** (trong menu Xuất, chỉ bật khi có review-server): **lưu source trước rồi xuất từ chính source** — PNG/JSON và HTML luôn đồng bộ, 0 token, không qua Claude
 
