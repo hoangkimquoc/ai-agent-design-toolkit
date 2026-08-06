@@ -1,8 +1,8 @@
 /**
  * Review overlay cho design--compose — editor chrome kiểu Figma/Canva.
- * Khi mở thường: hiện status pill online/offline ngoài artboard để user vào editor.
- * Khi URL có "#review" (hoặc "?review"): bật editor chrome. Ảnh export qua
- * compose-screenshot.py chụp đúng artboard nên không dính launcher/editor UI.
+ * Khi mở thường: bật editor chrome ở offline mode nếu chưa có review-server.
+ * Khi URL có "?render=1"/"?clean=1": tắt editor chrome để compose-screenshot.py
+ * chụp đúng artboard, không dính overlay UI.
  *
  * Tính năng:
  *  - Select (V): click chọn element → selection box + properties panel (X/Y/W %, font-size, nội dung, AI feedback)
@@ -12,7 +12,9 @@
  */
 (function () {
   'use strict';
-  var wantsReview = /[?#&]review/.test(location.search + location.hash);
+  var reviewFlags = location.search + location.hash;
+  var wantsCleanRender = /[?#&](render|clean|screenshot)(=1|=true)?($|[&#])/.test(reviewFlags);
+  var wantsReview = !wantsCleanRender;
   var frame = document.querySelector('[data-rvw-frame],.frame,.frame-container');
   if (!frame) return;
 
@@ -76,7 +78,7 @@
       savedSource: 'Đã lưu source:\n', exported: 'Đã lưu source + xuất PNG:\n',
       errSave: 'Lỗi lưu: ', errExport: 'Lỗi xuất: ', errServer: 'Không kết nối được review server: ',
       commentN: 'Comment ',
-      noServer: 'Không server — Lưu/Xuất PNG bị ẩn. Mở qua link http://127.0.0.1:xxxx (lệnh open-review.py), đừng mở file trực tiếp.',
+      noServer: 'Editor offline — Lưu/Xuất PNG ẩn',
       layerNames: { 'layer-bg': 'Nền (Background)', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Nội dung (Text/UI)' }
     },
     en: {
@@ -130,7 +132,7 @@
       savedSource: 'Source saved:\n', exported: 'Source saved + PNG exported:\n',
       errSave: 'Save error: ', errExport: 'Export error: ', errServer: 'Cannot reach review server: ',
       commentN: 'Comment ',
-      noServer: 'No server — Save/Export PNG hidden. Open via http://127.0.0.1:xxxx (the open-review.py command), not the raw file.',
+      noServer: 'Editor offline — Save/Export PNG hidden',
       layerNames: { 'layer-bg': 'Background', 'layer-art': 'Art (Assets)', 'layer-adjust': 'Adjustment', 'layer-content': 'Content (Text/UI)' }
     }
   };
@@ -138,121 +140,7 @@
     ((navigator.language || '').toLowerCase().indexOf('vi') === 0 ? 'vi' : 'en');
   if (!LANGS[lang]) lang = 'en';
   var T = LANGS[lang];
-  var overlayScriptSrc = (document.currentScript && document.currentScript.src) || '';
-
-  function installReviewLauncher() {
-    if (document.querySelector('.rvw-open-editor')) return;
-    var style = document.createElement('style');
-    style.className = 'rvw-launcher-style';
-    style.textContent = '.rvw-open-editor{position:fixed;z-index:99990;display:flex;align-items:center;gap:7px;' +
-      'height:28px;padding:0 9px;border:1px solid rgba(255,255,255,.22);border-radius:999px;background:rgba(30,30,30,.72);color:#f5f5f5;' +
-      'font:700 10px Inter,Segoe UI,system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.16);cursor:pointer;backdrop-filter:blur(8px)}' +
-      '.rvw-open-editor:hover{background:rgba(30,30,30,.9)}.rvw-open-editor svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8}' +
-      '.rvw-open-editor::before{content:"";width:7px;height:7px;border-radius:50%;background:#8a8a8a;box-shadow:0 0 0 3px rgba(138,138,138,.16)}' +
-      '.rvw-open-editor.rvw-online{background:rgba(20,94,54,.78);border-color:rgba(83,214,137,.42)}.rvw-open-editor.rvw-online::before{background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.18)}' +
-      '.rvw-open-editor.rvw-offline{background:rgba(58,58,58,.68);border-color:rgba(255,255,255,.18)}.rvw-open-editor.rvw-offline::before{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.18)}' +
-      '@media (max-width:1199px){.rvw-open-editor{display:none}}@media print{.rvw-open-editor{display:none}}';
-    document.head.appendChild(style);
-    var btn = document.createElement('button');
-    btn.className = 'rvw-open-editor';
-    btn.type = 'button';
-    btn.title = T.openEditorHint;
-    btn.innerHTML = '<svg viewBox="0 0 16 16"><path d="M3 13h3.5L13 6.5 9.5 3 3 9.5z"/><path d="M8.8 3.7l3.5 3.5"/></svg><span>' + T.startBackendLoading + '</span>';
-    function place() {
-      var r = frame.getBoundingClientRect();
-      btn.style.left = Math.round(r.right + 16) + 'px';
-      btn.style.top = Math.round(Math.max(16, r.top + 16)) + 'px';
-    }
-    function fileUrlToPath(url) {
-      if (!url || url.indexOf('file:///') !== 0) return '';
-      var p = decodeURIComponent(url.replace('file:///', ''));
-      if (/^[A-Za-z]:\//.test(p)) p = p.replace(/\//g, '\\');
-      return p;
-    }
-    function dirname(p) {
-      var i = Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/'));
-      return i >= 0 ? p.slice(0, i) : '';
-    }
-    function basename(p) {
-      var i = Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/'));
-      return i >= 0 ? p.slice(i + 1) : p;
-    }
-    function normPath(p) { return (p || '').replace(/\//g, '\\').toLowerCase(); }
-    function skillPath() {
-      return fileUrlToPath(overlayScriptSrc);
-    }
-    function reviewCommand() {
-      var script = skillPath().replace(/\\review-overlay\.js$/i, '\\open-review.py');
-      var file = fileUrlToPath(location.href.split('#')[0]);
-      return 'python "' + script + '" "' + file + '"';
-    }
-    var serverPort = null, serverChecked = false;
-    function setLauncherState(state, text, title) {
-      btn.classList.toggle('rvw-online', state === 'online');
-      btn.classList.toggle('rvw-offline', state === 'offline');
-      btn.querySelector('span').textContent = text;
-      btn.title = title || T.openEditorHint;
-    }
-    function copyOfflineCommand() {
-      var cmd = reviewCommand();
-      try { navigator.clipboard.writeText(cmd); } catch (err) { /* ignore */ }
-      setLauncherState('offline', T.editorCopied, cmd);
-      setTimeout(function () { setLauncherState('offline', T.editorOffline, T.editorOfflineHint + '\n' + cmd); }, 1200);
-    }
-    function findServerThenOpen(openWhenOnline) {
-      var file = fileUrlToPath(location.href.split('#')[0]);
-      var dir = normPath(dirname(file));
-      var name = basename(file);
-      btn.disabled = true;
-      btn.querySelector('span').textContent = T.startBackendLoading;
-      var ports = [];
-      for (var p = 7799; p < 7819; p++) ports.push(p);
-      Promise.all(ports.map(function (p) {
-        return fetch('http://127.0.0.1:' + p + '/__review__/ping').then(function (r) { return r.json(); })
-          .then(function (j) { return j && j.ok && normPath(j.dir) === dir ? p : null; })
-          .catch(function () { return null; });
-      })).then(function (matches) {
-        var port = matches.filter(Boolean)[0];
-        if (port) {
-          serverPort = port;
-          serverChecked = true;
-          setLauncherState('online', T.editorOnline, T.openEditorHint);
-          if (openWhenOnline) location.href = 'http://127.0.0.1:' + port + '/' + encodeURIComponent(name) + '#review';
-          return;
-        }
-        serverPort = null;
-        serverChecked = true;
-        setLauncherState('offline', T.editorOffline, T.editorOfflineHint + '\n' + reviewCommand());
-        if (openWhenOnline) copyOfflineCommand();
-      }).finally(function () {
-        btn.disabled = false;
-      });
-    }
-    btn.onclick = function () {
-      if (location.protocol.indexOf('http') === 0) {
-        if (location.hash !== '#review') location.hash = 'review';
-        location.reload();
-        return;
-      }
-      if (serverPort) {
-        var name = basename(fileUrlToPath(location.href.split('#')[0]));
-        location.href = 'http://127.0.0.1:' + serverPort + '/' + encodeURIComponent(name) + '#review';
-        return;
-      }
-      if (serverChecked) copyOfflineCommand();
-      else findServerThenOpen(true);
-    };
-    document.body.appendChild(btn);
-    place();
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    if (location.protocol.indexOf('http') === 0) setLauncherState('online', T.editorOnline, T.openEditorHint);
-    else findServerThenOpen(false);
-  }
-  if (!wantsReview) {
-    installReviewLauncher();
-    return;
-  }
+  if (!wantsReview) return;
 
   /* ===== Hit-testing tổng quát — overlay KHÔNG phụ thuộc tên class của design =====
      (fix 2026-08-05: design ngoài template gốc như pawos có class tùy ý → selector
@@ -2077,19 +1965,32 @@
     root.querySelectorAll('[class*="rvw-"]').forEach(function (n) { n.remove(); });
     var f = root.querySelector('.frame');
     if (f) { f.style.zoom = ''; f.style.transform = ''; }
-    // Giữ nguyên <script> overlay — nó tự no-op khi không có #review,
-    // và cần giữ để file source lưu về vẫn mở review được lần sau
+    // Giữ nguyên <script> overlay để file source lưu về vẫn mở được review UI.
+    // compose-screenshot.py dùng ?render=1 để tắt overlay khi chụp PNG sạch.
     return '<!DOCTYPE html>\n' + root.outerHTML;
   }
   function showNoServer() {
     var b = document.getElementById('rvw-srvstatus');
     if (!b) return;
     b.textContent = T.noServer;
+    b.style.background = '#4a3410';
+    b.style.borderColor = '#6b4c17';
+    b.style.color = '#f2b84b';
+    b.style.display = '';
+  }
+  function showOnlineServer() {
+    var b = document.getElementById('rvw-srvstatus');
+    if (!b) return;
+    b.textContent = T.editorOnline;
+    b.style.background = '#143c26';
+    b.style.borderColor = '#2b7a4b';
+    b.style.color = '#8ff0b3';
     b.style.display = '';
   }
   if (location.protocol.indexOf('http') === 0) {
     fetch('/__review__/ping').then(function (r) { return r.json(); }).then(function (j) {
       if (!j.ok) { showNoServer(); return; }
+      showOnlineServer();
       var fileName = location.pathname.split('/').pop();
       // Nút Lưu — ghi đè source HTML (backup .bak), 0 token
       var saveBtn = document.createElement('button');

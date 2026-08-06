@@ -66,7 +66,7 @@ def capture(browser: str, html_path: str, width: int, height: int,
     if not os.path.exists(abs_html):
         print(f"Lỗi: không tìm thấy file HTML: {abs_html}")
         return False
-    file_url = "file:///" + abs_html.replace(os.sep, "/")
+    file_url = "file:///" + abs_html.replace(os.sep, "/") + "?render=1"
 
     abs_output = os.path.abspath(output_path)
     os.makedirs(os.path.dirname(abs_output) or ".", exist_ok=True)
